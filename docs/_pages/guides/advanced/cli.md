@@ -47,9 +47,11 @@ Options:
  -run <qualified-class-name> : (advanced) Run provided class on valid sheets
  -sample                     : (advanced) Sample all book symbols
  -annotate                   : (advanced) Annotate all book symbols
+ -claude                     : (experimental) Prepare input images for Claude Code vision
 
 Input file extensions:
     .omr        : book file  (input/output)
+    .claude.json: (experimental) Claude vision score description (input)
     [any other] : image file (input)
 
 Sheet steps are in order:
@@ -205,6 +207,10 @@ Path to one input file.
 If the file name extension is `.omr`, the file is an Audiveris project file which will be used
 as input / output.
 
+If the file name ends with `.claude.json`, the file is a score description written by Claude
+vision and is converted to MusicXML
+(see [Claude vision OMR](./claude_vision.md), experimental).
+
 For any other extension, the file is considered as an image input file.
 
 ## Advanced Arguments
@@ -256,6 +262,17 @@ For each book, populates a Zip archive with images and symbol annotations derive
 instances.
 
 These annotations are meant to populate a dataset for training potential global classifiers.
+
+### -claude
+
+(experimental) Instead of running the Audiveris OMR engine on each input image file,
+renders its pages as PNG images and writes a `request.md` file,
+so that Claude Code can recognize the music with its vision capability.
+
+It cannot be combined with `-step`, `-transcribe`, `-export` or `-print`.
+It can be combined with `-output` and `-sheets`.
+
+See details in the [Claude vision OMR](./claude_vision.md) section.
 
 
 [^option]: `-constant` is a better name than the  old `-option`, but both names are supported.

@@ -111,6 +111,7 @@ The regular Audiveris OMR engine is unchanged and remains the default.
 From sources, use `./gradlew :app:run -PcmdLineArgs="-batch,-claude,-output,<dir>,<input>"`.
 The code lives in `app/src/main/java/org/audiveris/omr/claude`.
 Results must be proof-read: this mode is experimental.
+Full instructions: [Claude vision OMR guide](docs/_pages/guides/advanced/claude_vision.md).
 
 ## Further Information
 

@@ -41,7 +41,7 @@ If an installed Audiveris is available, `audiveris -batch <args...>` works the s
 
    This writes `<out-dir>/<radix>-claude/` containing `page-N.png`, optional
    `page-N-strip-K.png` detail strips for tall pages, and `request.md`.
-   Add `-sheets,1,3-4` to limit pages. For a single PNG/JPG you may skip this step and read the
+   To limit pages, insert `-sheets,1,3-4` before `-output` (it must be followed by an option). For a single PNG/JPG you may skip this step and read the
    image directly, but you then must take the format from
    `app/src/main/java/org/audiveris/omr/claude/ClaudeRequest.java` (`FORMAT_SPEC`).
 
