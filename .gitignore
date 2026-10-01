@@ -94,3 +94,10 @@ docs/pdf/build
 # flatpak
 dev/flatpak/.flatpak-builder/
 dev/flatpak/gradle/
+
+# Claude vision OMR working directories
+/*-claude/
+/*.claude.json
+/*-preview-*.png
+/*.mxl
+/*.pdf
