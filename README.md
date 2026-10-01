@@ -93,6 +93,25 @@ Periodically, when a release is to be made, we merge the development branch into
 
 See details in the [Wiki article][workflow] dedicated to the chosen development workflow.
 
+## Experimental: Claude vision OMR mode
+
+This fork adds an optional OMR mode where the visual and semantic recognition is done by
+Claude, using the vision capability of the Claude Code session you work in
+(no Anthropic API key, no network call from Audiveris).
+The regular Audiveris OMR engine is unchanged and remains the default.
+
+1. `audiveris -batch -claude -output <dir> <input>` renders the input pages as PNG images
+   in `<dir>/<radix>-claude/`, together with a `request.md` that specifies the expected
+   JSON score description.
+2. In Claude Code, the `claude-omr` skill (`.claude/skills/claude-omr/SKILL.md`)
+   reads these images and writes `<dir>/<radix>.claude.json`.
+3. `audiveris -batch -output <dir> <dir>/<radix>.claude.json` converts this description
+   into `<dir>/<radix>.mxl` through Audiveris' MusicXML (ProxyMusic) export.
+
+From sources, use `./gradlew :app:run -PcmdLineArgs="-batch,-claude,-output,<dir>,<input>"`.
+The code lives in `app/src/main/java/org/audiveris/omr/claude`.
+Results must be proof-read: this mode is experimental.
+
 ## Further Information
 
 - For users: the Audiveris [User Handbook][handbook].

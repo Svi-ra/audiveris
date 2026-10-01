@@ -1,0 +1,1328 @@
+{
+ "format": "audiveris-claude-omr/1",
+ "title": "Mam'zelle Zizi",
+ "composer": "Traditionnel Cajun",
+ "source": "zizi.png",
+ "parts": [
+  {
+   "id": "P1",
+   "name": "Piano",
+   "staves": 2,
+   "measures": [
+    {
+     "number": "1",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ],
+         "directions": [
+          {
+           "tempo": {
+            "beatUnit": "quarter",
+            "perMinute": 100
+           }
+          }
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ],
+     "key": {
+      "fifths": 0
+     },
+     "time": {
+      "beats": 4,
+      "beatType": 4,
+      "symbol": "common"
+     },
+     "clefs": [
+      {
+       "staff": 1,
+       "sign": "G"
+      },
+      {
+       "staff": 2,
+       "sign": "G"
+      }
+     ]
+    },
+    {
+     "number": "2",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 4,
+           "alter": 1,
+           "accidental": "sharp"
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 4,
+           "alter": 1
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": "3",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": "4",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 4,
+           "alter": 1,
+           "accidental": "sharp"
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "F",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": "5",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ],
+     "newSystem": true
+    },
+    {
+     "number": "6",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": "7",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 5
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "F",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": "8",
+     "voices": [
+      {
+       "voice": 1,
+       "staff": 1,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ],
+         "directions": [
+          {
+           "words": "Ritenuto",
+           "placement": "below"
+          }
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 5
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 4,
+           "alter": 1,
+           "accidental": "sharp"
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "G",
+           "octave": 4,
+           "alter": 1,
+           "accidental": "sharp"
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 4
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "voice": 5,
+       "staff": 2,
+       "events": [
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "B",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "E",
+           "octave": 4
+          }
+         ],
+         "dots": 1,
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "16th",
+         "pitches": [
+          {
+           "step": "D",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "end",
+          "backward hook"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "C",
+           "octave": 4
+          }
+         ],
+         "beams": [
+          "begin"
+         ]
+        },
+        {
+         "type": "eighth",
+         "pitches": [
+          {
+           "step": "F",
+           "octave": 3
+          }
+         ],
+         "beams": [
+          "end"
+         ]
+        },
+        {
+         "type": "quarter",
+         "pitches": [
+          {
+           "step": "A",
+           "octave": 3
+          }
+         ]
+        }
+       ]
+      }
+     ],
+     "rightBarline": {
+      "style": "light-heavy"
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -21,6 +21,7 @@
 // </editor-fold>
 package org.audiveris.omr;
 
+import org.audiveris.omr.claude.ClaudeOmr;
 import org.audiveris.omr.classifier.SampleRepository;
 import org.audiveris.omr.log.LogUtil;
 import org.audiveris.omr.score.Score;
@@ -138,6 +139,11 @@ public class CLI
 
             params.step = OmrStep.last();
         }
+
+        if (params.claude && ((params.step != null) || params.export || params.print)) {
+            String msg = "'-claude' option not compatible with step, transcribe, export or print";
+            throw new CmdLineException(parser, new Throwable(msg));
+        }
     }
 
     //-------------//
@@ -162,10 +168,16 @@ public class CLI
                 .filter(str -> (!str.isEmpty())).forEachOrdered(str -> {
                     final Path path = Paths.get(str);
 
-                    if (str.endsWith(OMR.BOOK_EXTENSION)) {
+                    if (str.endsWith(ClaudeOmr.DESCRIPTION_EXTENSION)) {
+                        // (experimental) Claude vision score description to convert
+                        tasks.add(new ClaudeImportTask(path));
+                    } else if (str.endsWith(OMR.BOOK_EXTENSION)) {
                         tasks.add(new BookTask(path));
                     } else if (str.endsWith("-" + SampleRepository.SAMPLES_FILE_NAME)) {
                         tasks.add(new SamplesTask(path));
+                    } else if (params.claude) {
+                        // (experimental) Image input to prepare for Claude vision
+                        tasks.add(new ClaudePrepareTask(path));
                     } else {
                         // Everything else is considered as an image input file
                         tasks.add(new InputTask(path));
@@ -363,6 +375,7 @@ public class CLI
 
         buf.append("\nInput file extensions:");
         buf.append("\n    .omr        : book file  (input/output)");
+        buf.append("\n    .claude.json: (experimental) Claude vision score description (input)");
         buf.append("\n    [any other] : image file (input)");
         buf.append("\n");
 
@@ -389,6 +402,96 @@ public class CLI
     }
 
     //~ Inner classes ------------------------------------------------------------------------------
+
+    //------------------//
+    // ClaudeImportTask //
+    //------------------//
+    /**
+     * (experimental) CLI task to convert a Claude vision score description into MusicXML.
+     */
+    private class ClaudeImportTask
+            extends CliTask
+    {
+        ClaudeImportTask (Path path)
+        {
+            super(path);
+        }
+
+        @Override
+        public Void call ()
+            throws Exception
+        {
+            if (!Files.exists(path)) {
+                String msg = "Could not find file \"" + path + "\"";
+                logger.warn(msg);
+                throw new RuntimeException(msg);
+            }
+
+            ClaudeOmr.importScore(path, params.outputFolder, true);
+
+            return null;
+        }
+
+        @Override
+        public String getRadix ()
+        {
+            return ClaudeOmr.getRadixOfJson(path);
+        }
+
+        @Override
+        protected Book loadBook (Path path)
+        {
+            return null; // No book involved
+        }
+
+        @Override
+        public String toString ()
+        {
+            return "Claude description \"" + path + "\"";
+        }
+    }
+
+    //-------------------//
+    // ClaudePrepareTask //
+    //-------------------//
+    /**
+     * (experimental) CLI task to prepare an input file for Claude vision recognition.
+     */
+    private class ClaudePrepareTask
+            extends CliTask
+    {
+        ClaudePrepareTask (Path path)
+        {
+            super(path);
+        }
+
+        @Override
+        public Void call ()
+            throws Exception
+        {
+            if (!Files.exists(path)) {
+                String msg = "Could not find file \"" + path + "\"";
+                logger.warn(msg);
+                throw new RuntimeException(msg);
+            }
+
+            ClaudeOmr.prepare(path, params.outputFolder, params.getSheetIds());
+
+            return null;
+        }
+
+        @Override
+        protected Book loadBook (Path path)
+        {
+            return null; // No book involved
+        }
+
+        @Override
+        public String toString ()
+        {
+            return "Claude preparation of \"" + path + "\"";
+        }
+    }
 
     //----------//
     // BookTask //
@@ -723,6 +826,10 @@ public class CLI
         /** Should symbols annotations be produced?. */
         @Option(name = "-annotate", usage = "(advanced) Annotate all book symbols")
         boolean annotate;
+
+        /** Should input images be prepared for Claude vision rather than processed?. */
+        @Option(name = "-claude", usage = "(experimental) Prepare input images for Claude Code vision")
+        boolean claude;
 
         private Parameters ()
         {
