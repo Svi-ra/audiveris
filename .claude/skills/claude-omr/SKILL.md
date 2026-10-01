@@ -1,6 +1,6 @@
 ---
 name: claude-omr
-description: Experimental Audiveris OMR mode using Claude Code's own vision. Transcribe a music score image or PDF into MusicXML (and PDF via MuseScore) by having Claude read pitch-labelled detail tiles prepared by Audiveris, write an audiveris-claude-omr JSON description, and letting Audiveris generate the MusicXML. Use when the user asks to recognize / transcribe / OMR / convert a score "with Claude" or "with Claude vision".
+description: Experimental Audiveris OMR mode using Claude Code's own vision. Transcribe a music score image or PDF into MusicXML (and PDF via MuseScore) by having Claude read pitch-labelled detail tiles prepared by Audiveris, write an audiveris-claude-omr JSON description, and letting Audiveris generate the MusicXML. Use when the user asks to recognize / transcribe / OMR / convert a score "with Claude" or "with Claude vision", and also whenever the user gives one or more score images (or asks about a score image) and asks to "convert to PDF" — run this full pipeline (image → Claude vision → MusicXML → MuseScore PDF), never just wrap the image into a PDF.
 ---
 
 # Claude vision OMR for Audiveris (experimental)
@@ -16,6 +16,19 @@ This mode splits the work in two:
 Never call the Anthropic API, never ask for or use an API key, never install an SDK.
 Everything happens in this session with your built-in image reading (the Read tool on PNG).
 The regular Audiveris OMR (`-batch -transcribe ...`) is untouched.
+
+## "Convert to PDF" requests
+
+When the user supplies a score image or a set of images (pasted in chat or as files) and asks
+to "convert to PDF" (or similar), this means the **full pipeline**, not embedding the picture
+in a PDF:
+
+1. Locate the image file(s) (pasted images live under the session's temp `images/` folder).
+   For several images, combine them into one multi-page input (e.g. a multi-page TIFF or PDF
+   built with Pillow) in the scratchpad, ordered as given, so they form one score.
+2. Run the workflow below: `prepare` → read tiles → write JSON → `finish` (MuseScore PDF).
+   Default the output directory to the working directory unless the user names one.
+3. End with the usual report plus a **token report** (see step 8).
 
 ## Keep the session cheap
 
@@ -88,6 +101,12 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
 7. **Report** to the user: output file paths (`.mxl`, `.pdf`), number of parts/measures,
    remaining warnings and passages you were unsure about. Remind them this mode is
    experimental and the result should be proof-read (for example in MuseScore).
+
+8. **Token report**: finish with a short report of the tokens spent on the task. Get the
+   numbers from the session usage tool (`mcp__ccd_session_mgmt__get_usage`, load it with
+   ToolSearch if deferred); if unavailable, use the `anthropic-skills:explain-usage` skill or
+   say that exact figures are not available. Keep it to a few lines: input / output / cache
+   tokens and total, plus the number of images read. Do not draw charts.
 
 ## Notes
 
