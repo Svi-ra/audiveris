@@ -101,14 +101,21 @@ Claude, using the vision capability of the Claude Code session you work in
 The regular Audiveris OMR engine is unchanged and remains the default.
 
 1. `audiveris -batch -claude -output <dir> <input>` renders the input pages as PNG images
-   in `<dir>/<radix>-claude/`, together with a `request.md` that specifies the expected
+   in `<dir>/<radix>-claude/`, detects the layout with the first engine steps, writes
+   pitch-labelled detail tiles and a `request.md` that specifies the expected
    JSON score description.
 2. In Claude Code, the `claude-omr` skill (`.claude/skills/claude-omr/SKILL.md`)
-   reads these images and writes `<dir>/<radix>.claude.json`.
+   reads these tiles and writes `<dir>/<radix>.claude.json`.
 3. `audiveris -batch -output <dir> <dir>/<radix>.claude.json` converts this description
    into `<dir>/<radix>.mxl` through Audiveris' MusicXML (ProxyMusic) export.
 
-From sources, use `./gradlew :app:run -PcmdLineArgs="-batch,-claude,-output,<dir>,<input>"`.
+First-time setup (JDK 25, OCR data, optional MuseScore, build and checks) is automated by
+`.claude/skills/project-setup/scripts/setup.sh`, also available to Claude Code as the
+`project-setup` skill: ask Claude to "set up the project". It is safe to run again.
+
+From sources, the script `.claude/skills/claude-omr/scripts/claude-omr.sh` (`prepare` /
+`finish`) builds the launcher when needed, runs these steps and, if MuseScore is installed,
+also produces a PDF.
 The code lives in `app/src/main/java/org/audiveris/omr/claude`.
 Results must be proof-read: this mode is experimental.
 Full instructions: [Claude vision OMR guide](docs/_pages/guides/advanced/claude_vision.md).
