@@ -137,6 +137,18 @@ The script prints the findings of Audiveris, located in the JSON file:
 - **Warnings** do not stop it, but usually reveal a recognition mistake. For example:
   `$.parts[0].measures[5]: measure content lasts 3/4 whole note(s), less than the measure capacity 1`
   or `...directions[0]: wedge is never stopped`.
+  Consistency checks also report unknown keys (a misspelled field would otherwise be
+  ignored), ties and slurs never stopped or stopped without a start, a staff left without
+  any content in a measure, a text repeated in many consecutive measures or in every part
+  (typically a copy-paste or generator-script mistake), and a part whose concert key differs
+  from the other parts (misread key signature or missing transposition).
+- A **Contents** line counts what the description holds (tempos, dynamics, wedges, graces,
+  ties, slurs, bowings, ornaments, credits...): a 0 where the page shows such symbols means
+  they were missed.
+
+In `request.md`, a reading checklist lists the most frequent omissions, and lines starting
+with `CHECK` flag likely layout detection errors, such as a staff whose detected key
+signature differs from the other staves.
 
 Re-check the indicated measures on their tiles, fix the JSON and run `finish` again,
 until no error and no unexplained warning remains.
@@ -210,12 +222,15 @@ Supported:
 parts and multi-staff parts, clefs (including octave clefs), key and time signatures
 (including common and cut time), notes, chords, rests, measure rests, grace notes,
 dots, ties, slurs, tuplets, beams, stems, accidentals, staccato, staccatissimo, accent, tenuto,
-marcato, breath mark, caesura, fermatas, dynamics, hairpins (wedges), text directions,
+marcato, breath mark, caesura, down-bow and up-bow, ornaments (trill mark, mordents,
+turns, shake), fermatas, dynamics, hairpins (wedges), text directions,
 metronome marks, lyrics, barline styles, repeats, volta endings, system and page breaks,
-transposing instruments, page layout, title, composer, lyricist, arranger and rights.
+transposing instruments, page layout, title, subtitle, opus, composer, lyricist, arranger,
+rights and any other header or footer text (`credits`, with a position such as
+`bottom-left`).
 
 Not supported yet:
-ornaments, octave shifts, pedal marks, chord names, figured bass, tablatures,
+octave shifts, wavy trill lines, pedal marks, chord names, figured bass, tablatures,
 drum notation instruments, and the precise graphical positions of symbols.
 
 ## Tips for better results and lower cost

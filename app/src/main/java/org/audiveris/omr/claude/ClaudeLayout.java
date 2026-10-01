@@ -48,8 +48,11 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 
@@ -409,6 +412,8 @@ public abstract class ClaudeLayout
                 lines.add("    - staff " + (i + 1) + ": " + sys.staves.get(i).describe());
             }
 
+            lines.addAll(keyChecks(sys));
+
             if (!sys.groups.isEmpty()) {
                 final StringBuilder sb = new StringBuilder("    - braced/multi-staff groups:");
 
@@ -441,6 +446,49 @@ public abstract class ClaudeLayout
         }
 
         return measure;
+    }
+
+    //-----------//
+    // keyChecks //
+    //-----------//
+    /**
+     * Flag staves whose detected key signature differs from the most frequent one.
+     * <p>
+     * In an ensemble score, the staves of non-transposing instruments share the same key: a
+     * staff whose detected key differs is either a transposing instrument or a misdetection
+     * (typically some sharps or flats of a C-clef key signature missed).
+     */
+    private static List<String> keyChecks (SystemGeo sys)
+    {
+        final Map<Integer, Integer> counts = new HashMap<>();
+
+        for (StaffGeo staff : sys.staves) {
+            if ((staff.fifths != null) && (staff.fifths != 0)) {
+                counts.merge(staff.fifths, 1, Integer::sum);
+            }
+        }
+
+        if (counts.isEmpty()) {
+            return List.of();
+        }
+
+        final int major = Collections.max(counts.entrySet(), Map.Entry.comparingByValue())
+                .getKey();
+        final List<String> checks = new ArrayList<>();
+
+        for (int i = 0; i < sys.staves.size(); i++) {
+            final Integer fifths = sys.staves.get(i).fifths;
+
+            if ((fifths != null) && (fifths != 0) && (fifths != major)) {
+                checks.add(
+                        "    - CHECK staff " + (i + 1) + ": detected key " + fifths
+                                + " differs from most staves (" + major
+                                + "): transposing instrument, or misdetected key signature"
+                                + " (count the sharps/flats in the tile)");
+            }
+        }
+
+        return checks;
     }
 
     //---------------//

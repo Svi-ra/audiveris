@@ -28,7 +28,7 @@ in a PDF:
    built with Pillow) in the scratchpad, ordered as given, so they form one score.
 2. Run the workflow below: `prepare` → read tiles → write JSON → `finish` (MuseScore PDF).
    Default the output directory to the working directory unless the user names one.
-3. End with the usual report plus a **token report** (see step 8).
+3. End with the usual report plus a **token report** (see step 9).
 
 ## Keep the session cheap
 
@@ -68,7 +68,10 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
      at the start of the system (adapt after a clef change). Verify detected clefs/keys and
      measure numbers: a missed or spurious barline shifts the numbering.
 
-   Reading discipline:
+   Reading discipline (and go through the **reading checklist** of `request.md`: header and
+   footer texts, tempo and metronome marks, hairpins, second-player rests on shared staves,
+   grace-note flags, ties/slurs leaving the last measure, bowings and ornaments, key
+   signatures; lines starting with `CHECK` in the layout point at likely detection errors):
    - Clefs, key and time signatures first; they drive every pitch.
    - Measure by measure, staff by staff; every part must have the same number of measures.
    - Durations of every voice must add up to the time signature (except a pickup,
@@ -80,7 +83,9 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
    - Every hairpin (`wedge`) start needs a `stop` on the same staff.
 
 4. **Write** the description to the path given in `request.md`
-   (`<out-dir>/<radix>.claude.json`). A complete sample is
+   (`<out-dir>/<radix>.claude.json`). With a generator script, build every JSON object
+   afresh: never reuse one dict/list (e.g. a measure-rest constant) in several places and
+   then modify it, or the change lands everywhere. A complete sample is
    `data/examples/claude/zizi.claude.json` (transcription of `data/examples/zizi.png`).
 
 5. **Finish**:
@@ -94,15 +99,20 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
    `$.parts[0].measures[3].voices[0].events[2].type`) or warnings (measure too long / too
    short, wedge never stopped…).
 
-6. **Fix and iterate**: re-open only the tiles of the measures involved, edit the JSON, run
-   `finish` again until there are no errors and no unexplained warnings. Optionally look once
-   at the preview to catch layout problems.
+6. **Audit the contents**: `finish` prints a `Contents:` line (counts of tempos, dynamics,
+   wedges, graces, ties, slurs, bowings, ornaments, credits...). Compare it with the page: a 0
+   (or a clearly low count) for symbols the page shows means they were missed; re-open the
+   tiles involved. Look once at the preview next to the page image for header, footer and
+   layout problems.
 
-7. **Report** to the user: output file paths (`.mxl`, `.pdf`), number of parts/measures,
+7. **Fix and iterate**: re-open only the tiles of the measures involved, edit the JSON, run
+   `finish` again until there are no errors and no unexplained warnings.
+
+8. **Report** to the user: output file paths (`.mxl`, `.pdf`), number of parts/measures,
    remaining warnings and passages you were unsure about. Remind them this mode is
    experimental and the result should be proof-read (for example in MuseScore).
 
-8. **Token report**: finish with a short report of the tokens spent on the task. Get the
+9. **Token report**: finish with a short report of the tokens spent on the task. Get the
    numbers from the session usage tool (`mcp__ccd_session_mgmt__get_usage`, load it with
    ToolSearch if deferred); if unavailable, use the `anthropic-skills:explain-usage` skill or
    say that exact figures are not available. Keep it to a few lines: input / output / cache

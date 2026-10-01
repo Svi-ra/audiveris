@@ -154,6 +154,7 @@ cmd_finish () {
     local warnings
     warnings=$(grep -E "WARN .*Claude OMR:" "$log" | sed -E 's/^.*Claude OMR: //')
     echo "MusicXML: $dir/$radix.mxl"
+    grep -h "Claude OMR summary:" "$log" | tail -1 | sed -E 's/^.*Claude OMR summary: /Contents: /'
     if [ -n "$warnings" ]; then
         echo "Warnings ($(echo "$warnings" | wc -l)):"
         echo "$warnings" | head -30

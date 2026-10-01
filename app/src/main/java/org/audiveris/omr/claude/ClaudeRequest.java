@@ -47,9 +47,10 @@ public abstract class ClaudeRequest
             ```json
             {
               "format": "audiveris-claude-omr/1",
-              "title": "optional title",
+              "title": "optional title", "subtitle": "optional", "opus": "optional",
               "composer": "optional", "lyricist": "optional", "arranger": "optional",
               "rights": "optional", "source": "optional input file name",
+              "credits": [ { "text": "Edition XYZ", "position": "bottom-left" } ],
               "parts": [
                 {
                   "id": "P1", "name": "Piano", "abbreviation": "Pno.",
@@ -76,7 +77,8 @@ public abstract class ClaudeRequest
                                              "accidental": "sharp", "tie": "start" },
                                            { "step": "A", "octave": 4 } ],
                               "stem": "up", "beams": [], "slurs": ["start"],
-                              "articulations": ["staccato"], "fermata": false,
+                              "articulations": ["staccato"], "bowings": ["down-bow"],
+                              "ornaments": ["trill-mark"], "fermata": false,
                               "directions": [ { "dynamics": "mf" } ],
                               "lyrics": [ { "number": 1, "text": "la", "syllabic": "single" } ] },
                             { "type": "eighth", "rest": true },
@@ -97,6 +99,12 @@ public abstract class ClaudeRequest
 
             ### Rules
 
+            - **header / footer**: `title`, `subtitle`, `opus`, `composer`, `lyricist`,
+              `arranger`, `rights` (copyright line) are printed at their usual place. Every other
+              text printed in the page header or footer (publisher, plate number, dedication,
+              translated title...) goes into `credits`, with `position` top-left, top-center,
+              top-right, bottom-left, bottom-center or bottom-right (and optional `fontSize`
+              in points). A header field also listed in `credits` is printed only there.
             - **parts**: one entry per instrument, top to bottom. A piano grand staff is ONE part
               with `"staves": 2`. Every part must have the same number of measures.
             - **transpose** (part, or measure for an instrument change): only for transposing
@@ -133,7 +141,9 @@ public abstract class ClaudeRequest
               - `slurs`: list of "start" / "stop" / "continue" (or objects `{type, number}` for
                 overlapping slurs).
               - `stem`: up or down. `articulations`: staccato, staccatissimo, accent, tenuto,
-                marcato, breath-mark, caesura. `fermata`: true.
+                marcato, breath-mark, caesura. `bowings`: down-bow, up-bow. `ornaments`:
+                trill-mark, mordent, inverted-mordent, turn, inverted-turn, delayed-turn, shake.
+                `fermata`: true.
               - `directions` (printed just before the event): one of `dynamics` (p, pp, ppp, mp,
                 mf, f, ff, fff, fp, fz, sf, sfz), `words` (text such as "dolce", "rit."),
                 `wedge` (crescendo, diminuendo, stop; every wedge needs a stop on the same
@@ -149,9 +159,40 @@ public abstract class ClaudeRequest
               heavy-light, heavy-heavy, none; `repeat` forward (left) / backward (right);
               `ending` `{ "number": "1", "type": "start" | "stop" | "discontinue",
               "text": "1." }`. Omit plain single barlines.
+            - Unknown keys are reported as warnings and ignored: use only the keys above.
             - Omit any optional field you do not need. Never invent content you cannot see; if a
               symbol is unreadable, choose the most plausible value that keeps the measure
               rhythmically complete.
+            """;
+
+    /** What a transcription most often leaves out: to be checked on every page. */
+    public static final String CHECKLIST = """
+            ## Reading checklist (most frequent omissions)
+
+            Before writing the JSON, check each item on every page:
+
+            - **Header and footer**: title, subtitle, opus, composer, and every other printed
+              text (publisher, plate number, copyright) go to header fields or `credits`.
+            - **Tempo**: tempo words *and* metronome mark (e.g. dotted quarter = 60 is
+              `tempo` with `"dots": 1`); tempo words repeated above a lower section (strings)
+              belong to the top part of that section too.
+            - **Hairpins**: look below *and* above every staff, also right after a dynamic
+              (`p >`); each one is a `wedge` start plus a `stop` where it ends.
+            - **Shared staves** (two players on one staff, `a 2`, `1.`, divisi): a second rest
+              drawn below or above the first one, or stems in both directions, means a second
+              voice; write it, even as a measure rest.
+            - **Grace notes**: count their flags or beams (eighth, 16th...), note the slash,
+              and their slur to the main note.
+            - **Ties and slurs at the right edge** of the last measure of a page or excerpt:
+              start them (`"tie": "start"`), they continue on the next page.
+            - **Bowings and ornaments**: down-bow, up-bow, trills, mordents, turns.
+            - **Key signatures**: count sharps and flats on every staff, especially C clefs where
+              they are placed differently; non-transposing instruments share one concert key.
+
+            After the conversion, compare the `Contents` counts printed by the script (tempos,
+            wedges, graces, bowings, credits...) with what the page shows: a 0 where the page has
+            such symbols means they were missed.
+
             """;
 
     //~ Constructors -------------------------------------------------------------------------------
@@ -194,14 +235,16 @@ public abstract class ClaudeRequest
         sb.append("3. Transcribe the music into the JSON format specified below and write it\n");
         sb.append("   to `").append(jsonPath).append("`.\n");
         sb.append("4. Run Audiveris on that file to obtain MusicXML; fix the description if\n");
-        sb.append("   Audiveris reports errors or warnings. Re-open only the tiles involved.\n\n");
+        sb.append("   Audiveris reports errors or warnings. Re-open only the tiles involved.\n");
+        sb.append("   Lines starting with CHECK in the layout below point at likely detection\n");
+        sb.append("   errors: verify them on the tiles.\n\n");
         sb.append("## Page images\n\n");
 
         for (String line : pages) {
             sb.append(line).append('\n');
         }
 
-        sb.append('\n').append(FORMAT_SPEC);
+        sb.append('\n').append(CHECKLIST).append(FORMAT_SPEC);
 
         return sb.toString();
     }

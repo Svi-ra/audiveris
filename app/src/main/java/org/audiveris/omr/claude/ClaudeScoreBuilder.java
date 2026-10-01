@@ -50,6 +50,13 @@ import org.audiveris.proxymusic.Direction;
 import org.audiveris.proxymusic.DirectionType;
 import org.audiveris.proxymusic.Dynamics;
 import org.audiveris.proxymusic.Empty;
+import org.audiveris.proxymusic.Valign;
+import org.audiveris.proxymusic.Ornaments;
+import org.audiveris.proxymusic.LeftCenterRight;
+import org.audiveris.proxymusic.FormattedText;
+import org.audiveris.proxymusic.Credit;
+import org.audiveris.proxymusic.Technical;
+import org.audiveris.proxymusic.EmptyPlacement;
 import org.audiveris.proxymusic.Encoding;
 import org.audiveris.proxymusic.Ending;
 import org.audiveris.proxymusic.Fermata;
@@ -108,7 +115,9 @@ import java.math.RoundingMode;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -184,6 +193,9 @@ public class ClaudeScoreBuilder
     /** Numbers of slurs in current part, keyed by voice. */
     private SpannerNumbers slurNumbers;
 
+    /** One-line summary of the description contents. */
+    private String summary;
+
     //~ Constructors -------------------------------------------------------------------------------
 
     /**
@@ -219,6 +231,17 @@ public class ClaudeScoreBuilder
             warn("$.format", "unexpected format '" + format + "', expected '" + FORMAT + "'");
         }
 
+        // Consistency checks (omissions, duplications, unknown keys...) before any build error
+        final ClaudeChecks checks = new ClaudeChecks().run(json);
+
+        for (String w : checks.getWarnings()) {
+            warnings.add(w);
+            logger.warn("Claude OMR: {}", w);
+        }
+
+        summary = checks.getSummary();
+        logger.info("Claude OMR summary: {}", summary);
+
         computeDivisions(root);
 
         final ScorePartwise scorePartwise = factory.createScorePartwise();
@@ -240,7 +263,9 @@ public class ClaudeScoreBuilder
             staffTotal += processPart(part, ++partIndex, partList, scorePartwise);
         }
 
-        scorePartwise.setDefaults(buildDefaults(root.get("layout"), staffTotal));
+        final Defaults defaults = buildDefaults(root.get("layout"), staffTotal);
+        scorePartwise.setDefaults(defaults);
+        processCredits(root, defaults, scorePartwise);
 
         return scorePartwise;
     }
@@ -381,6 +406,17 @@ public class ClaudeScoreBuilder
     public List<String> getWarnings ()
     {
         return Collections.unmodifiableList(warnings);
+    }
+
+    /**
+     * Report a one-line summary of the contents of last built description (counts of notes,
+     * dynamics, wedges, slurs...), to help spot a whole category of symbols left out.
+     *
+     * @return the summary, or null
+     */
+    public String getSummary ()
+    {
+        return summary;
     }
 
     private boolean isGrace (Node event)
@@ -767,6 +803,143 @@ public class ClaudeScoreBuilder
         return duration;
     }
 
+    //----------------//
+    // processCredits //
+    //----------------//
+    /**
+     * Print header and footer texts of the first page as MusicXML credits.
+     * <p>
+     * Title, subtitle, composer, lyricist, arranger, opus and rights get their usual place;
+     * any other printed text (publisher, plate number, dedication...) comes from the
+     * "credits" array, placed according to its "position" (top-left ... bottom-right).
+     */
+    private void processCredits (Node root,
+                                 Defaults defaults,
+                                 ScorePartwise scorePartwise)
+    {
+        final PageLayout page = defaults.getPageLayout();
+        final double tenthsPerMm = 40 / defaults.getScaling().getMillimeters().doubleValue();
+        final double width = page.getPageWidth().doubleValue();
+        final double height = page.getPageHeight().doubleValue();
+        final double margin = PAGE_MARGIN * tenthsPerMm;
+        final List<String> positions = List.of(
+                "top-left", "top-center", "top-right", "bottom-left", "bottom-center",
+                "bottom-right");
+
+        // JSON key, credit type, position, font size
+        final String[][] header = {
+                { "title", "title", "top-center", "22" },
+                { "subtitle", "subtitle", "top-center", "14" },
+                { "composer", "composer", "top-right", "11" },
+                { "opus", "opus", "top-right", "11" },
+                { "arranger", "arranger", "top-right", "10" },
+                { "lyricist", "lyricist", "top-left", "10" },
+                { "rights", "rights", "bottom-center", "8" } };
+
+        // Text, credit type, position, font size, path
+        final List<String[]> texts = new ArrayList<>();
+
+        // A header text also listed in "credits" is printed only once, where the credit says
+        final Set<String> creditTexts = new HashSet<>();
+
+        for (Node credit : root.get("credits").listOrEmpty()) {
+            creditTexts.add(credit.get("text").str());
+        }
+
+        for (String[] h : header) {
+            final String text = root.get(h[0]).str(null);
+
+            if ((text != null) && !creditTexts.contains(text)) {
+                texts.add(new String[] { text, h[1], h[2], h[3], root.get(h[0]).path });
+            }
+        }
+
+        for (Node credit : root.get("credits").listOrEmpty()) {
+            texts.add(new String[] { credit.get("text").str(), null,
+                    credit.get("position").str("bottom-left").toLowerCase(Locale.ROOT),
+                    Integer.toString(credit.get("fontSize").integer(8)),
+                    credit.get("position").path });
+        }
+
+        // Score editors (MuseScore) lay credits out by kind and alignment, not by coordinates:
+        // texts sharing a slot would overlap. So the title gets its own credit, the other top
+        // texts are merged into one multi-line credit per position, and all footer texts into
+        // a single footer line.
+        final Map<String, List<String[]>> slots = new LinkedHashMap<>();
+
+        for (String[] t : texts) {
+            if (!positions.contains(t[2])) {
+                throw new JsonException(t[4] + ": invalid position '" + t[2] + "' (expected one"
+                        + " of " + positions + ")");
+            }
+
+            final String slot = "title".equals(t[1]) ? "title"
+                    : (t[2].startsWith("bottom") ? "footer" : t[2]);
+            slots.computeIfAbsent(slot, k -> new ArrayList<>()).add(t);
+        }
+
+        // The footer line keeps the left-to-right order of its texts
+        final List<String[]> footer = slots.get("footer");
+
+        if (footer != null) {
+            footer.sort(Comparator.comparingInt(t -> positions.indexOf(t[2])));
+        }
+
+        for (Map.Entry<String, List<String[]>> entry : slots.entrySet()) {
+            final String slot = entry.getKey();
+            final List<String[]> group = entry.getValue();
+            final String position = slot.equals("title") ? "top-center"
+                    : (slot.equals("footer") ? "bottom-center" : slot);
+            final boolean top = position.startsWith("top");
+            final String side = position.substring(position.indexOf('-') + 1);
+            final double x = switch (side) {
+                case "left" -> margin;
+                case "right" -> width - margin;
+                default -> width / 2;
+            };
+            final double y = top ? (height - margin) : (margin / 2);
+
+            final List<String> values = new ArrayList<>();
+            String type = null;
+
+            for (String[] t : group) {
+                values.add(t[0]);
+
+                if (type == null) {
+                    type = t[1];
+                }
+            }
+
+            final FormattedText words = factory.createFormattedText();
+            words.setValue(String.join(slot.equals("footer") ? "        " : "\n", values));
+            words.setDefaultX(decimal(x));
+            words.setDefaultY(decimal(y));
+            words.setFontSize(group.get(0)[3]);
+            words.setJustify(enumOf(LeftCenterRight.class, side, group.get(0)[4]));
+            words.setValign(top ? Valign.TOP : Valign.BOTTOM);
+
+            final Credit credit = factory.createCredit();
+            credit.setPage(BigInteger.ONE);
+
+            if (slot.equals("footer")) {
+                type = "rights";
+
+                // MuseScore prints the footer from identification rights, not from credits
+                final TypedText typedText = factory.createTypedText();
+                typedText.setValue(words.getValue());
+                scorePartwise.getIdentification().getRights().clear();
+                scorePartwise.getIdentification().getRights().add(typedText);
+            }
+
+            if (type != null) {
+                credit.getCreditTypeOrLinkOrBookmark().add(factory.createCreditCreditType(type));
+            }
+
+            credit.getCreditTypeOrLinkOrBookmark().add(factory.createCreditCreditWords(words));
+            scorePartwise.getCredit().add(credit);
+        }
+    }
+
     //---------------//
     // processHeader //
     //---------------//
@@ -775,11 +948,21 @@ public class ClaudeScoreBuilder
     {
         final String title = root.get("title").str(null);
 
-        if (title != null) {
+        final String opus = root.get("opus").str(null);
+
+        if ((title != null) || (opus != null)) {
             final Work work = factory.createWork();
-            work.setWorkTitle(title);
+
+            if (title != null) {
+                work.setWorkTitle(title);
+                scorePartwise.setMovementTitle(title);
+            }
+
+            if (opus != null) {
+                work.setWorkNumber(opus);
+            }
+
             scorePartwise.setWork(work);
-            scorePartwise.setMovementTitle(title);
         }
 
         final Identification identification = factory.createIdentification();
@@ -1119,6 +1302,56 @@ public class ClaudeScoreBuilder
             }
 
             list.add(articulations);
+        }
+
+        // Bowings (technical)
+        final List<Node> bowNodes = event.get("bowings").listOrEmpty();
+
+        if (!bowNodes.isEmpty()) {
+            final Technical technical = factory.createTechnical();
+
+            for (Node node : bowNodes) {
+                final String name = node.str().toLowerCase(Locale.ROOT);
+                final EmptyPlacement placement = factory.createEmptyPlacement();
+                placement.setPlacement(AboveBelow.ABOVE);
+                technical.getUpBowOrDownBowOrHarmonic().add(switch (name) {
+                    case "down-bow" -> factory.createTechnicalDownBow(placement);
+                    case "up-bow" -> factory.createTechnicalUpBow(placement);
+                    default -> throw new JsonException(
+                            node.path + ": unsupported bowing '" + name + "'");
+                });
+            }
+
+            list.add(technical);
+        }
+
+        // Ornaments
+        final List<Node> ornamentNodes = event.get("ornaments").listOrEmpty();
+
+        if (!ornamentNodes.isEmpty()) {
+            final Ornaments ornaments = factory.createOrnaments();
+
+            for (Node node : ornamentNodes) {
+                final String name = node.str().toLowerCase(Locale.ROOT);
+                ornaments.getTrillMarkOrTurnOrDelayedTurn().add(switch (name) {
+                    case "trill-mark", "trill" -> factory.createOrnamentsTrillMark(
+                            factory.createEmptyTrillSound());
+                    case "mordent" -> factory.createOrnamentsMordent(factory.createMordent());
+                    case "inverted-mordent" -> factory.createOrnamentsInvertedMordent(
+                            factory.createMordent());
+                    case "turn" -> factory.createOrnamentsTurn(factory.createHorizontalTurn());
+                    case "inverted-turn" -> factory.createOrnamentsInvertedTurn(
+                            factory.createHorizontalTurn());
+                    case "delayed-turn" -> factory.createOrnamentsDelayedTurn(
+                            factory.createHorizontalTurn());
+                    case "shake" -> factory.createOrnamentsShake(
+                            factory.createEmptyTrillSound());
+                    default -> throw new JsonException(
+                            node.path + ": unsupported ornament '" + name + "'");
+                });
+            }
+
+            list.add(ornaments);
         }
 
         // Fermata

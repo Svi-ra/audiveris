@@ -85,6 +85,9 @@ public class ClaudeScoreBuilderTest
                           { "type": "half", "dots": 1,
                             "pitches": [ { "step": "F", "octave": 4, "alter": 1, "tie": "stop" } ],
                             "lyrics": [ { "text": "la" } ] }
+                        ] },
+                        { "voice": 5, "staff": 2, "events": [
+                          { "rest": true, "measureRest": true }
                         ] }
                       ]
                     }
@@ -257,5 +260,151 @@ public class ClaudeScoreBuilderTest
         } catch (JsonException ex) {
             assertTrue(ex.getMessage(), ex.getMessage().contains("events[0].type"));
         }
+    }
+
+    /** One single-staff part of 2/4 measures, each one given as a JSON event list. */
+    private static String part (String keyAndTranspose,
+                                String... measureEvents)
+    {
+        final StringBuilder sb = new StringBuilder("{ " + keyAndTranspose + " \"measures\": [");
+
+        for (int i = 0; i < measureEvents.length; i++) {
+            sb.append((i > 0) ? "," : "").append("{");
+
+            if (i == 0) {
+                sb.append("\"time\": { \"beats\": 2, \"beatType\": 4 },");
+            }
+
+            sb.append("\"voices\": [ { \"events\": [ ").append(measureEvents[i]).append(
+                    " ] } ] }");
+        }
+
+        return sb.append("] }").toString();
+    }
+
+    private static final String HALF_C = """
+            { "type": "half", "pitches": [ { "step": "C", "octave": 5 } ] }""";
+
+    private static final String REST = "{ \"rest\": true, \"measureRest\": true }";
+
+    private static List<String> warningsOf (String json)
+    {
+        final ClaudeScoreBuilder builder = new ClaudeScoreBuilder(null);
+        builder.build(Json.parse(json));
+
+        return builder.getWarnings();
+    }
+
+    private static void assertWarning (List<String> warnings,
+                                       String fragment)
+    {
+        assertTrue(
+                warnings.toString(),
+                warnings.stream().anyMatch(w -> w.contains(fragment)));
+    }
+
+    @Test
+    public void testUnknownKey ()
+    {
+        final String json = "{ \"subtitel\": \"x\", \"parts\": [ " + part(
+                "",
+                HALF_C.replace("\"type\"", "\"bowing\": [\"down-bow\"], \"type\"")) + " ] }";
+        final List<String> warnings = warningsOf(json);
+        assertWarning(warnings, "unknown key 'subtitel'");
+        assertWarning(warnings, "unknown key 'bowing'");
+    }
+
+    @Test
+    public void testTies ()
+    {
+        final String start = HALF_C.replace("\"octave\": 5", "\"octave\": 5, \"tie\": \"start\"");
+        final String stop = HALF_C.replace("\"octave\": 5", "\"octave\": 5, \"tie\": \"stop\"");
+
+        // Tie started and never stopped (not in the last measure)
+        assertWarning(warningsOf("{ \"parts\": [ " + part("", start, HALF_C) + " ] }"),
+                "tie is never stopped");
+
+        // Tie stop without start (not in the first measure)
+        assertWarning(warningsOf("{ \"parts\": [ " + part("", HALF_C, stop) + " ] }"),
+                "tie stop without a tie start");
+
+        // Correct pair, and a tie left open in the last measure (it continues on next page)
+        assertTrue(warningsOf("{ \"parts\": [ " + part("", start, stop.replace(
+                "\"tie\": \"stop\"", "\"tie\": \"continue\"")) + " ] }").isEmpty());
+    }
+
+    @Test
+    public void testEmptyStaff ()
+    {
+        // Two-staff part, second staff left without any voice
+        final String json = part("\"staves\": 2,", HALF_C);
+        assertWarning(warningsOf("{ \"parts\": [ " + json + " ] }"), "staff 2 has no content");
+    }
+
+    @Test
+    public void testRepeatedTexts ()
+    {
+        final String words = REST.replace(
+                "}",
+                ", \"directions\": [ { \"words\": \"Allegro\" } ] }");
+
+        // Same text in 3 consecutive measures of a part
+        assertWarning(
+                warningsOf("{ \"parts\": [ " + part("", words, words, words) + " ] }"),
+                "consecutive measures");
+
+        // Same text in all parts of a measure
+        final String p = part("", words, REST);
+        assertWarning(warningsOf("{ \"parts\": [ " + p + "," + p + "," + p + " ] }"),
+                "repeated in all 3 parts");
+    }
+
+    @Test
+    public void testConcertKeys ()
+    {
+        final String e = "\"key\": { \"fifths\": 4 },";
+        final List<String> parts = List.of(
+                part("", REST, REST).replace("\"time\"", e + "\"time\""),
+                part("", REST, REST).replace("\"time\"", e + "\"time\""),
+                // Clarinet in A: written 1 sharp sounds 4 sharps, consistent
+                part("\"transpose\": { \"chromatic\": -3 },", REST, REST).replace(
+                        "\"time\"",
+                        "\"key\": { \"fifths\": 1 }, \"time\""),
+                // Misread viola key: 1 sharp instead of 4
+                part("", REST, REST).replace("\"time\"", "\"key\": { \"fifths\": 1 }, \"time\""));
+        final List<String> warnings = warningsOf(
+                "{ \"parts\": [ " + String.join(",", parts) + " ] }");
+        assertEquals(warnings.toString(), 1, warnings.size());
+        assertWarning(warnings, "$.parts[3].measures[0].key: concert key differs");
+    }
+
+    @Test
+    public void testCreditsBowingsOrnaments ()
+        throws Exception
+    {
+        final String json = """
+                { "title": "T", "subtitle": "S", "opus": "Op. 46", "composer": "C",
+                  "rights": "(c) 1985 X",
+                  "credits": [ { "text": "Edition X", "position": "bottom-left" },
+                               { "text": "(c) 1985 X", "position": "bottom-right" } ],
+                  "parts": [ %s ] }
+                """.formatted(part("", HALF_C.replace(
+                "\"type\"",
+                "\"bowings\": [\"down-bow\"], \"ornaments\": [\"trill-mark\"], \"type\"")));
+        final ClaudeScoreBuilder builder = new ClaudeScoreBuilder(null);
+        final String xml = marshal(builder.build(Json.parse(json)));
+        assertTrue(builder.getWarnings().toString(), builder.getWarnings().isEmpty());
+        assertTrue(xml, xml.contains("<down-bow"));
+        assertTrue(xml, xml.contains("<trill-mark"));
+        assertTrue(xml, xml.contains("<credit-type>subtitle</credit-type>"));
+        assertTrue(xml, xml.contains("<work-number>Op. 46</work-number>"));
+        // Top texts sharing a position are merged (score editors would overlap them)
+        assertTrue(xml, xml.contains(">C\nOp. 46</credit-words>"));
+
+        // Footer texts form one line, left to right; rights listed in credits printed once
+        assertTrue(xml, xml.contains(">Edition X        (c) 1985 X</credit-words>"));
+        assertEquals(xml, xml.indexOf("1985 X</credit-words>"), xml.lastIndexOf("1985 X</credit-words>"));
+        assertTrue(xml, xml.contains("<rights>Edition X        (c) 1985 X</rights>"));
+        assertTrue(builder.getSummary(), builder.getSummary().contains("bowings 1"));
     }
 }
