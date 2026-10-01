@@ -36,6 +36,12 @@ import org.audiveris.proxymusic.BackwardForward;
 import org.audiveris.proxymusic.BarStyle;
 import org.audiveris.proxymusic.BarStyleColor;
 import org.audiveris.proxymusic.Barline;
+import org.audiveris.proxymusic.Defaults;
+import org.audiveris.proxymusic.MarginType;
+import org.audiveris.proxymusic.PageLayout;
+import org.audiveris.proxymusic.PageMargins;
+import org.audiveris.proxymusic.Scaling;
+import org.audiveris.proxymusic.Transpose;
 import org.audiveris.proxymusic.Beam;
 import org.audiveris.proxymusic.BeamValue;
 import org.audiveris.proxymusic.Clef;
@@ -98,11 +104,17 @@ import jakarta.xml.bind.JAXBElement;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -129,6 +141,27 @@ public class ClaudeScoreBuilder
     private static final String[] TYPE_NAMES = { "long", "breve", "whole", "half", "quarter",
             "eighth", "16th", "32nd", "64th", "128th", "256th" };
 
+    /** Default diatonic steps for a chromatic transposition of 0..11 semitones. */
+    private static final int[] DIATONIC_OF_CHROMATIC = { 0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6 };
+
+    /** Default page size (A4) and margin, in millimeters. */
+    private static final double DEFAULT_PAGE_WIDTH = 210;
+
+    private static final double DEFAULT_PAGE_HEIGHT = 297;
+
+    private static final double PAGE_MARGIN = 15;
+
+    /** Vertical room reserved on first page for title and credits, in millimeters. */
+    private static final double TITLE_ROOM = 30;
+
+    /** Vertical room needed per staff, as a multiple of staff height (staff + spacing). */
+    private static final double STAFF_ROOM_RATIO = 4.2;
+
+    /** Range of automatic staff height, in millimeters (MuseScore default is 7). */
+    private static final double MIN_STAFF_HEIGHT = 3.5;
+
+    private static final double MAX_STAFF_HEIGHT = 7.0;
+
     //~ Instance fields ----------------------------------------------------------------------------
 
     private final ObjectFactory factory = new ObjectFactory();
@@ -144,6 +177,12 @@ public class ClaudeScoreBuilder
 
     /** Total divisions per whole note. */
     private int wholeDivisions;
+
+    /** Numbers of wedges in current part, keyed by staff. */
+    private SpannerNumbers wedgeNumbers;
+
+    /** Numbers of slurs in current part, keyed by voice. */
+    private SpannerNumbers slurNumbers;
 
     //~ Constructors -------------------------------------------------------------------------------
 
@@ -195,12 +234,73 @@ public class ClaudeScoreBuilder
         }
 
         int partIndex = 0;
+        int staffTotal = 0;
 
         for (Node part : parts) {
-            processPart(part, ++partIndex, partList, scorePartwise);
+            staffTotal += processPart(part, ++partIndex, partList, scorePartwise);
         }
 
+        scorePartwise.setDefaults(buildDefaults(root.get("layout"), staffTotal));
+
         return scorePartwise;
+    }
+
+    //---------------//
+    // buildDefaults //
+    //---------------//
+    /**
+     * Build page layout defaults, so that a whole system fits on a page.
+     * <p>
+     * Without them, score editors use their default staff size, which for large ensembles pushes
+     * the first system off the title page.
+     *
+     * @param layout     optional "layout" node: staffHeight, pageWidth, pageHeight (millimeters)
+     * @param staffTotal total number of staves in a system
+     */
+    private Defaults buildDefaults (Node layout,
+                                    int staffTotal)
+    {
+        final double pageWidth = layout.get("pageWidth").number(DEFAULT_PAGE_WIDTH);
+        final double pageHeight = layout.get("pageHeight").number(DEFAULT_PAGE_HEIGHT);
+
+        if ((pageWidth <= (2 * PAGE_MARGIN)) || (pageHeight <= (2 * PAGE_MARGIN + TITLE_ROOM))) {
+            throw new JsonException(layout.path + ": page is too small");
+        }
+
+        final double available = pageHeight - (2 * PAGE_MARGIN) - TITLE_ROOM;
+        final double auto = Math.max(
+                MIN_STAFF_HEIGHT,
+                Math.min(MAX_STAFF_HEIGHT, available / (staffTotal * STAFF_ROOM_RATIO)));
+        final double staffHeight = layout.get("staffHeight").number(auto);
+
+        if (staffHeight <= 0) {
+            throw new JsonException(layout.get("staffHeight").path + ": must be positive");
+        }
+
+        // MusicXML tenths: 40 tenths = one staff height
+        final double tenthsPerMm = 40 / staffHeight;
+
+        final Scaling scaling = factory.createScaling();
+        scaling.setMillimeters(decimal(staffHeight));
+        scaling.setTenths(new BigDecimal(40));
+
+        final PageMargins margins = factory.createPageMargins();
+        margins.setType(MarginType.BOTH);
+        margins.setLeftMargin(decimal(PAGE_MARGIN * tenthsPerMm));
+        margins.setRightMargin(decimal(PAGE_MARGIN * tenthsPerMm));
+        margins.setTopMargin(decimal(PAGE_MARGIN * tenthsPerMm));
+        margins.setBottomMargin(decimal(PAGE_MARGIN * tenthsPerMm));
+
+        final PageLayout pageLayout = factory.createPageLayout();
+        pageLayout.setPageWidth(decimal(pageWidth * tenthsPerMm));
+        pageLayout.setPageHeight(decimal(pageHeight * tenthsPerMm));
+        pageLayout.getPageMargins().add(margins);
+
+        final Defaults defaults = factory.createDefaults();
+        defaults.setScaling(scaling);
+        defaults.setPageLayout(pageLayout);
+
+        return defaults;
     }
 
     //------------------//
@@ -390,7 +490,27 @@ public class ClaudeScoreBuilder
             directionType.getWordsOrSymbol().add(pmWords);
         } else if (wedge != null) {
             final Wedge pmWedge = factory.createWedge();
-            pmWedge.setType(enumOf(WedgeType.class, wedge, node.get("wedge").path));
+            final WedgeType wedgeType = enumOf(WedgeType.class, wedge, node.get("wedge").path);
+            pmWedge.setType(wedgeType);
+
+            // Number wedges per staff, so that starts and stops on different staves of the
+            // same part are not paired together by score editors
+            final String key = "staff " + node.get("staff").integer(defaultStaff);
+
+            if (wedgeType == WedgeType.STOP) {
+                final Integer number = wedgeNumbers.stop(key);
+
+                if (number == null) {
+                    warn(node.path, "wedge stop without any open wedge on " + key);
+                } else {
+                    pmWedge.setNumber(number);
+                }
+            } else if (wedgeType == WedgeType.CONTINUE) {
+                pmWedge.setNumber(wedgeNumbers.current(key));
+            } else {
+                pmWedge.setNumber(wedgeNumbers.start(key, node.path));
+            }
+
             directionType.setWedge(pmWedge);
             defaultPlacement = "below";
         } else if (!tempo.isNull()) {
@@ -614,7 +734,7 @@ public class ClaudeScoreBuilder
                     note.getBeam().add(pmBeam);
                 }
 
-                notations = processNotations(event, notations);
+                notations = processNotations(event, voiceId, notations);
 
                 int lyricIndex = 0;
 
@@ -710,6 +830,7 @@ public class ClaudeScoreBuilder
                                      int measureIndex,
                                      int staffCount,
                                      Rational currentTime,
+                                     Node partTranspose,
                                      ScorePartwise.Part pmPart)
     {
         final ScorePartwise.Part.Measure pmMeasure = factory.createScorePartwisePartMeasure();
@@ -841,6 +962,19 @@ public class ClaudeScoreBuilder
             hasAttributes = true;
         }
 
+        // Transposition: part-level value applies from first measure, measure-level value
+        // (e.g. instrument change) overrides it
+        Node transposeNode = measure.get("transpose");
+
+        if (transposeNode.isNull() && (partTranspose != null)) {
+            transposeNode = partTranspose;
+        }
+
+        if (!transposeNode.isNull()) {
+            attributes.getTranspose().add(processTranspose(transposeNode));
+            hasAttributes = true;
+        }
+
         if (hasAttributes) {
             items.add(attributes);
         }
@@ -911,6 +1045,7 @@ public class ClaudeScoreBuilder
     // processNotations //
     //------------------//
     private Notations processNotations (Node event,
+                                        String voiceId,
                                         Notations notations)
     {
         final List<Object> list = new ArrayList<>();
@@ -920,9 +1055,23 @@ public class ClaudeScoreBuilder
             final Slur pmSlur = factory.createSlur();
             final boolean isText = slur.value instanceof String;
             final String type = isText ? slur.str() : slur.get("type").str();
-            pmSlur.setType(
-                    enumOf(StartStopContinue.class, type, isText ? slur.path : slur.path + ".type"));
-            pmSlur.setNumber(isText ? 1 : slur.get("number").integer(1));
+            final StartStopContinue ssc = enumOf(
+                    StartStopContinue.class,
+                    type,
+                    isText ? slur.path : slur.path + ".type");
+            pmSlur.setType(ssc);
+
+            // An explicit number is kept, otherwise slurs are numbered per voice
+            final Integer explicit = isText ? null : slur.get("number").integerOrNull();
+            final String key = (explicit != null) ? "number " + explicit : "voice " + voiceId;
+            final Integer number = switch (ssc) {
+                case START -> slurNumbers.start(key, slur.path, explicit);
+                case STOP -> slurNumbers.stop(key);
+                case CONTINUE -> slurNumbers.current(key);
+            };
+
+            // A stop without start may legitimately end a slur begun before the transcription
+            pmSlur.setNumber((number != null) ? number : ((explicit != null) ? explicit : 1));
             list.add(pmSlur);
         }
 
@@ -995,11 +1144,19 @@ public class ClaudeScoreBuilder
     //-------------//
     // processPart //
     //-------------//
-    private void processPart (Node part,
-                              int partIndex,
-                              PartList partList,
-                              ScorePartwise scorePartwise)
+    /**
+     * Process one part.
+     *
+     * @return the number of staves in this part
+     */
+    private int processPart (Node part,
+                             int partIndex,
+                             PartList partList,
+                             ScorePartwise scorePartwise)
     {
+        wedgeNumbers = new SpannerNumbers();
+        slurNumbers = new SpannerNumbers();
+
         final ScorePart scorePart = factory.createScorePart();
         scorePart.setId(part.get("id").str("P" + partIndex));
 
@@ -1042,8 +1199,46 @@ public class ClaudeScoreBuilder
                     ++measureIndex,
                     staffCount,
                     currentTime,
+                    (measureIndex == 1) ? part.get("transpose") : null,
                     pmPart);
         }
+
+        // A wedge left open would be drawn up to the end of the score
+        for (String path : wedgeNumbers.openPaths()) {
+            warn(path, "wedge is never stopped");
+        }
+
+        return staffCount;
+    }
+
+    //------------------//
+    // processTranspose //
+    //------------------//
+    /**
+     * Process a transposition for a transposing instrument (written pitch to sounding pitch).
+     */
+    private Transpose processTranspose (Node node)
+    {
+        final int chromatic = node.get("chromatic").integer(0);
+        final int octaveChange = node.get("octaveChange").integer(0);
+        final int sign = (chromatic < 0) ? -1 : 1;
+        final int abs = Math.abs(chromatic);
+        final int defaultDiatonic = sign * (((abs / 12) * 7) + DIATONIC_OF_CHROMATIC[abs % 12]);
+        final int diatonic = node.get("diatonic").integer(defaultDiatonic);
+
+        if ((chromatic == 0) && (octaveChange == 0) && (diatonic == 0)) {
+            warn(node.path, "transposition has no effect");
+        }
+
+        final Transpose transpose = factory.createTranspose();
+        transpose.setChromatic(new BigDecimal(chromatic));
+        transpose.setDiatonic(bigInt(diatonic));
+
+        if (octaveChange != 0) {
+            transpose.setOctaveChange(bigInt(octaveChange));
+        }
+
+        return transpose;
     }
 
     private int toDivisions (Rational duration)
@@ -1084,6 +1279,11 @@ public class ClaudeScoreBuilder
     private static BigInteger bigInt (int value)
     {
         return BigInteger.valueOf(value);
+    }
+
+    private static BigDecimal decimal (double value)
+    {
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 
     private static void checkStaff (Node node,
@@ -1169,6 +1369,80 @@ public class ClaudeScoreBuilder
 
     //~ Inner Classes ------------------------------------------------------------------------------
 
+    //----------------//
+    // SpannerNumbers //
+    //----------------//
+    /**
+     * Allocates MusicXML numbers to spanners (wedges, slurs) of a part, so that each stop is
+     * paired with the start of the same key (staff or voice) even when spanners overlap.
+     */
+    private static class SpannerNumbers
+    {
+        /** Open spanners per key, most recent first: number and path of start. */
+        private final Map<String, Deque<Object[]>> open = new LinkedHashMap<>();
+
+        /** Numbers currently in use. */
+        private final Set<Integer> used = new HashSet<>();
+
+        Integer current (String key)
+        {
+            final Deque<Object[]> deque = open.get(key);
+
+            return ((deque == null) || deque.isEmpty()) ? null : (Integer) deque.peek()[0];
+        }
+
+        List<String> openPaths ()
+        {
+            final List<String> paths = new ArrayList<>();
+
+            for (Deque<Object[]> deque : open.values()) {
+                for (Object[] entry : deque) {
+                    paths.add((String) entry[1]);
+                }
+            }
+
+            return paths;
+        }
+
+        int start (String key,
+                   String path)
+        {
+            return start(key, path, null);
+        }
+
+        int start (String key,
+                   String path,
+                   Integer explicit)
+        {
+            int number = (explicit != null) ? explicit : 1;
+
+            if (explicit == null) {
+                while (used.contains(number)) {
+                    number++;
+                }
+            }
+
+            used.add(number);
+            open.computeIfAbsent(key, k -> new ArrayDeque<>()).push(new Object[] { number, path });
+
+            return number;
+        }
+
+        Integer stop (String key)
+        {
+            final Deque<Object[]> deque = open.get(key);
+
+            if ((deque == null) || deque.isEmpty()) {
+                return null;
+            }
+
+            final Integer number = (Integer) deque.pop()[0];
+            used.remove(number);
+
+            return number;
+        }
+    }
+
     //------//
     // Node //
     //------//
@@ -1249,9 +1523,27 @@ public class ClaudeScoreBuilder
             throw new JsonException(path + ": integer expected");
         }
 
+        Integer integerOrNull ()
+        {
+            return (value == null) ? null : integer(0);
+        }
+
         boolean isNull ()
         {
             return value == null;
+        }
+
+        double number (double def)
+        {
+            if (value == null) {
+                return def;
+            }
+
+            if (value instanceof BigDecimal bd) {
+                return bd.doubleValue();
+            }
+
+            throw new JsonException(path + ": number expected");
         }
 
         List<Node> list ()

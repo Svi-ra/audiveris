@@ -54,6 +54,7 @@ public abstract class ClaudeRequest
                 {
                   "id": "P1", "name": "Piano", "abbreviation": "Pno.",
                   "staves": 2,
+                  "transpose": { "chromatic": -2, "diatonic": -1, "octaveChange": 0 },
                   "measures": [
                     {
                       "number": "1",
@@ -98,6 +99,15 @@ public abstract class ClaudeRequest
 
             - **parts**: one entry per instrument, top to bottom. A piano grand staff is ONE part
               with `"staves": 2`. Every part must have the same number of measures.
+            - **transpose** (part, or measure for an instrument change): only for transposing
+              instruments, from written to sounding pitch. `chromatic`: semitones (negative when
+              sounding lower), `diatonic`: steps (computed from `chromatic` if omitted),
+              `octaveChange`. Examples: B-flat clarinet -2; horn in F -7; horn in E -8;
+              alto sax -9; double bass and guitar `{ "chromatic": 0, "octaveChange": -1 }`.
+              Pitches are always written as printed.
+            - **layout** (optional, root level): `{ "staffHeight": 5.0, "pageWidth": 210,
+              "pageHeight": 297 }` in millimeters. Omit it: the staff size is computed so that a
+              whole system fits on an A4 page.
             - **measures**: in reading order across all systems and pages. Set `"newSystem": true`
               on the first measure of each new system and `"newPage": true` on the first measure of
               each new page (not on measure 1). Use `"implicit": true` for a pickup (anacrusis).
@@ -126,7 +136,8 @@ public abstract class ClaudeRequest
                 marcato, breath-mark, caesura. `fermata`: true.
               - `directions` (printed just before the event): one of `dynamics` (p, pp, ppp, mp,
                 mf, f, ff, fff, fp, fz, sf, sfz), `words` (text such as "dolce", "rit."),
-                `wedge` (crescendo, diminuendo, stop) or `tempo`
+                `wedge` (crescendo, diminuendo, stop; every wedge needs a stop on the same
+                staff) or `tempo`
                 (`{ "beatUnit": "quarter", "dots": 0, "perMinute": 96 }`);
                 optional `placement` (above / below) and `staff`.
               - `lyrics`: `number` (verse), `text`, `syllabic` (single, begin, middle, end).
@@ -169,13 +180,21 @@ public abstract class ClaudeRequest
         sb.append("# Audiveris – Claude vision OMR request (experimental)\n\n");
         sb.append("Input file: `").append(input).append("`\n\n");
         sb.append("## Task\n\n");
-        sb.append("1. Look at every page image below (folder `").append(folder).append("`).\n");
-        sb.append("   Use the full page to understand the layout (parts, systems, measures),\n");
-        sb.append("   and the detail strips, if any, to read small symbols reliably.\n");
-        sb.append("2. Transcribe the music into the JSON format specified below.\n");
-        sb.append("3. Write it to `").append(jsonPath).append("`.\n");
+        sb.append("Images are in folder `").append(folder).append("`.\n\n");
+        sb.append("1. Look once at each page overview (or page image) to identify the parts:\n");
+        sb.append("   instrument names, which staves belong to which part.\n");
+        sb.append("2. Read the music from the **detail tiles**, each one only once. In a tile,\n");
+        sb.append("   staff lines are labelled with their pitch in the left margin (red) and\n");
+        sb.append("   spaces in the right margin (blue), for the detected clef; dotted guides\n");
+        sb.append("   mark ledger-line positions; green `mN` marks measure starts; `Sk` (right\n");
+        sb.append("   margin, at middle line) is the staff number.\n");
+        sb.append("   Labels ignore the key signature and accidentals, and follow the clef at\n");
+        sb.append("   the start of the system: adapt them after a clef change. Measure numbers\n");
+        sb.append("   are provisional (a missed or extra barline shifts them): check them.\n");
+        sb.append("3. Transcribe the music into the JSON format specified below and write it\n");
+        sb.append("   to `").append(jsonPath).append("`.\n");
         sb.append("4. Run Audiveris on that file to obtain MusicXML; fix the description if\n");
-        sb.append("   Audiveris reports errors or measure-capacity warnings.\n\n");
+        sb.append("   Audiveris reports errors or warnings. Re-open only the tiles involved.\n\n");
         sb.append("## Page images\n\n");
 
         for (String line : pages) {

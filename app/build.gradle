@@ -75,6 +75,7 @@ dependencies {
         "com.jgoodies:jgoodies-forms:1.9.0",
         "com.jgoodies:jgoodies-looks:2.7.0",
         "com.sun.xml.bind:jaxb-core:2.3.0.1",
+        "com.twelvemonkeys.imageio:imageio-webp:3.12.0", // WebP reader plugin for ImageIO
         "com.sun.xml.bind:jaxb-impl:2.3.1",
         "gov.nist.math:jama:1.0.3",
         "javax.media:jai-core:1.1.3",

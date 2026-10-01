@@ -27,9 +27,10 @@ The work is split between Claude and Audiveris:
 
 | Who | Does what |
 | :--- | :--- |
-| **Audiveris** | Loads the input file (PNG, JPG, TIFF, PDF, multi-page…), renders each page as a PNG image and writes a `request.md` file that describes the expected result. |
-| **Claude Code** | Looks at the page images with its own vision and writes a JSON score description (`<name>.claude.json`): parts, measures, clefs, keys, times, notes, rests, beams, ties, slurs, tuplets, articulations, dynamics, lyrics… |
+| **Audiveris** | Loads the input file (PNG, JPG, WebP, TIFF, PDF, multi-page…), renders each page as a PNG image, runs its first engine steps to detect the layout (systems, staves, barlines, clefs, key signatures) and writes compact, pitch-labelled **detail tiles** plus a `request.md` file that describes the expected result. |
+| **Claude Code** | Looks at the tiles with its own vision and writes a JSON score description (`<name>.claude.json`): parts, measures, clefs, keys, times, notes, rests, beams, ties, slurs, tuplets, articulations, dynamics, lyrics… |
 | **Audiveris** | Reads the JSON description, computes divisions, durations and voice backups, checks that every measure is rhythmically complete, then writes MusicXML (`<name>.mxl`) with its regular ProxyMusic export. |
+| **MuseScore** (optional) | Engraves the MusicXML as a PDF, plus a small preview image for a visual check. |
 
 Key points:
 
@@ -38,95 +39,106 @@ Key points:
   which reads the image files from your disk.
 - **The standard Audiveris engine is untouched.** Without the `-claude` option and without a
   `.claude.json` input, Audiveris behaves exactly as before.
-- The two engines are independent: the Claude mode does not create any `.omr` book,
-  so the Audiveris editor cannot be used to correct its result.
+  The Claude mode only *uses* the first engine steps (up to `HEADERS`) to find the layout,
+  without creating any `.omr` book.
+- The Audiveris editor cannot be used to correct the result.
   Make corrections in the JSON description (or ask Claude to make them), then convert again.
 
 ## Requirements
 
 - A **build of this fork** of Audiveris (it contains the `-claude` option),
-  which requires **JDK 25**. See [Sources](../../tutorials/install/sources.md).
+  which requires **JDK 25**, for example Eclipse Temurin 25
+  (`winget install EclipseAdoptium.Temurin.25.JDK` on Windows).
+  See [Sources](../../tutorials/install/sources.md).
 - **Claude Code** (CLI, desktop app or IDE extension) opened on the Audiveris repository folder,
   so that the `claude-omr` skill (`.claude/skills/claude-omr/SKILL.md`) is available.
-
-In the commands below, Audiveris is started from the sources with Gradle:
-
-```bash
-./gradlew :app:run -PcmdLineArgs="-batch,<arg1>,<arg2>,..."
-```
-
-{: .important }
-`cmdLineArgs` is a comma-separated list, so a path cannot contain a comma.
-Gradle runs Audiveris from the `app` folder, so **always use absolute paths**.
-
-If you use an installed build of this fork, replace this with `audiveris -batch <arg1> <arg2> ...`.
+- Optionally **MuseScore 4** (or 3), to get a PDF. It is found on the `PATH`, in its default
+  install location, or through the `MUSESCORE` environment variable.
 
 ## Quick start: let Claude do everything
 
 Open Claude Code in the Audiveris repository and ask, for example:
 
-> Transcribe `D:/scores/minuet.pdf` to MusicXML with Claude vision,
+> Transcribe `D:/scores/minuet.pdf` to PDF with Claude vision,
 > output in `D:/scores/out`.
 
 Claude then uses the `claude-omr` skill to run the steps below:
-it prepares the images, reads them, writes the description, converts it,
-and fixes any reported problem.
-At the end it reports the path to the `.mxl` file, the remaining warnings
+it prepares the tiles, reads them, writes the description, converts it,
+fixes any reported problem and engraves the PDF.
+At the end it reports the paths to the `.mxl` and `.pdf` files, the remaining warnings
 and the passages it was unsure about.
 
 The sections below describe each step, if you want to run them yourself.
 
 ## Step by step
 
-### 1. Prepare the page images
+All steps go through one script, which builds the Audiveris launcher of the repository when
+needed (first run, or sources changed), finds JDK 25 and MuseScore, writes full logs to files
+and prints only a short summary:
 
 ```bash
-./gradlew :app:run -PcmdLineArgs="-batch,-claude,-output,D:/scores/out,D:/scores/minuet.pdf"
+.claude/skills/claude-omr/scripts/claude-omr.sh prepare <input> [-o <out-dir>] [-s <sheets>]
+.claude/skills/claude-omr/scripts/claude-omr.sh finish <out-dir>/<name>.claude.json
+```
+
+The script runs in Bash (Git Bash on Windows) and accepts paths with spaces or commas.
+
+### 1. Prepare the page material
+
+```bash
+.claude/skills/claude-omr/scripts/claude-omr.sh prepare D:/scores/minuet.pdf -o D:/scores/out
 ```
 
 This creates the folder `D:/scores/out/minuet-claude/` with:
 
 | File | Content |
 | :--- | :--- |
-| `page-1.png`, `page-2.png`, … | One image per page of the input file |
-| `page-N-strip-K.png` | For pages taller than 1600 pixels: overlapping horizontal strips at full resolution, so that small symbols (accidentals, dots, ledger lines) stay readable |
-| `request.md` | The list of images, the path where the description is expected (`D:/scores/out/minuet.claude.json`) and the full specification of the JSON format |
+| `page-N.png` | One image per page of the input file |
+| `page-N-overview.png` | The page, annotated with system, staff (`S1`, `S2`…) and provisional measure numbers (`m1`, `m2`…) |
+| `page-N-s<sys>-m<a>-<b>-st<i>-<j>.png` | Detail tiles: measures *a* to *b* of staves *i* to *j*, enlarged, with the pitch of every staff line (left margin, red) and space (right margin, blue) according to the detected clef, dotted guides at ledger-line positions and measure numbers on top |
+| `page-N-strip-K.png` | Only for a page whose layout could not be detected: overlapping horizontal strips |
+| `request.md` | The list of images, the detected layout (staves, clefs, keys, measures), the path where the description is expected (`D:/scores/out/minuet.claude.json`) and the full specification of the JSON format |
+| `audiveris.log` | The full Audiveris log |
 
-Options:
+Low-resolution images (for example from the web) are handled: when the engine rejects the
+interline as too small, the layout is detected on an upscaled copy.
 
-- `-sheets 1 3-4` limits the pages to prepare. It must be followed by another option, not
-  directly by the input file, for example:
-  `-PcmdLineArgs="-batch,-claude,-sheets,1,3-4,-output,D:/scores/out,D:/scores/minuet.pdf"`.
-- Without `-output`, the material is written next to the input file.
-- `-claude` cannot be combined with `-step`, `-transcribe`, `-export` or `-print`.
+Options: `-s "1 3-4"` limits the pages to prepare; without `-o`, the material is written next to
+the input file.
+
+The equivalent raw command is
+`Audiveris -batch -claude [-sheets 1 3-4] -output D:/scores/out D:/scores/minuet.pdf`
+(`-sheets` must be followed by another option; `-claude` cannot be combined with `-step`,
+`-transcribe`, `-export` or `-print`).
 
 ### 2. Have Claude write the description
 
 In Claude Code, ask Claude to follow `D:/scores/out/minuet-claude/request.md`.
-Claude reads each full page to understand the layout (parts, systems, measures),
-then the strips to read the details, and writes `D:/scores/out/minuet.claude.json`.
+Claude looks once at each overview to identify the parts, reads every detail tile once,
+and writes `D:/scores/out/minuet.claude.json`.
 
-### 3. Convert the description to MusicXML
+### 3. Convert, check and engrave
 
 ```bash
-./gradlew :app:run -PcmdLineArgs="-batch,-output,D:/scores/out,D:/scores/out/minuet.claude.json"
+.claude/skills/claude-omr/scripts/claude-omr.sh finish D:/scores/out/minuet.claude.json
 ```
 
-Any input file whose name ends with `.claude.json` is converted (no `-claude` option is needed).
-The result is the compressed MusicXML file `D:/scores/out/minuet.mxl`.
-Without `-output`, it is written next to the `.claude.json` file.
+This writes `D:/scores/out/minuet.mxl` and, if MuseScore is found, `minuet.pdf` and
+`minuet-preview-1.png` (use `--no-pdf` or `--no-preview` to skip them).
+The equivalent raw command is
+`Audiveris -batch -output D:/scores/out D:/scores/out/minuet.claude.json`:
+any input file whose name ends with `.claude.json` is converted.
 
-### 4. Check and fix
-
-Audiveris logs its findings with a `Claude OMR:` prefix and the location in the JSON file:
+The script prints the findings of Audiveris, located in the JSON file:
 
 - **Errors** stop the conversion: invalid JSON, unknown note type, staff number out of range,
   etc. For example:
   `$.parts[0].measures[3].voices[0].events[2].type: unknown note type 'crotchet'`
 - **Warnings** do not stop it, but usually reveal a recognition mistake. For example:
   `$.parts[0].measures[5]: measure content lasts 3/4 whole note(s), less than the measure capacity 1`
+  or `...directions[0]: wedge is never stopped`.
 
-Re-check the indicated measures on the images, fix the JSON and convert again,
+Re-check the indicated measures on their tiles, fix the JSON and run `finish` again,
 until no error and no unexplained warning remains.
 Then open the `.mxl` file in a score editor to proof-read it.
 
@@ -182,6 +194,12 @@ Main rules:
 - `alter` is the sounding alteration (taking key signature and previous accidentals into account),
   whereas `accidental` only describes an accidental sign printed on the page.
 - Measure layout hints: `"newSystem": true`, `"newPage": true`; pickup measure: `"implicit": true`.
+- Transposing instruments: `"transpose"` on the part (written to sounding pitch), for example
+  `{ "chromatic": -7 }` for a horn in F, or `{ "chromatic": 0, "octaveChange": -1 }` for a
+  double bass. Pitches are always written as printed.
+- Page layout: Audiveris writes a staff size such that a whole system fits on an A4 page; an
+  optional root `"layout": { "staffHeight": 5, "pageWidth": 210, "pageHeight": 297 }`
+  (millimeters) overrides it.
 
 A complete example is provided in the repository: `data/examples/claude/zizi.claude.json`,
 the transcription of `data/examples/zizi.png`.
@@ -194,17 +212,26 @@ parts and multi-staff parts, clefs (including octave clefs), key and time signat
 dots, ties, slurs, tuplets, beams, stems, accidentals, staccato, staccatissimo, accent, tenuto,
 marcato, breath mark, caesura, fermatas, dynamics, hairpins (wedges), text directions,
 metronome marks, lyrics, barline styles, repeats, volta endings, system and page breaks,
-title, composer, lyricist, arranger and rights.
+transposing instruments, page layout, title, composer, lyricist, arranger and rights.
 
 Not supported yet:
 ornaments, octave shifts, pedal marks, chord names, figured bass, tablatures,
 drum notation instruments, and the precise graphical positions of symbols.
 
-## Tips for better results
+## Tips for better results and lower cost
 
+Most of the Claude usage comes from the number of steps of the session (each one re-reads the
+conversation) and from the images it looks at. To keep it low:
+
+- **Try the standard engine first.** `Audiveris -batch -transcribe -export <input>` runs
+  locally at no token cost. Keep the Claude mode for pages the standard engine gets wrong.
+- **Read each tile once.** The tiles already carry the pitch names and measure numbers;
+  avoid making extra crops or re-reading full pages.
+- **Use the script.** It prints a few lines instead of full logs, which would otherwise be
+  re-read at every later step.
+- **Batch pages.** Prepare several pages (or a whole PDF) in one session, so that the fixed
+  cost (instructions, skill, setup) is shared.
+- **Pick the model for the page.** A clean, simple page can be done with a smaller model or a
+  lower effort setting; keep the most capable model for dense or degraded scores.
 - Prefer clean scans of at least 300 DPI; crooked or blurred pages degrade recognition.
-- For long scores, ask Claude to work one system (or one page) at a time and
-  to check measure counts across parts.
 - When a passage is ambiguous, ask Claude to list its doubts so that you can check them first.
-- To compare with the standard engine, run the regular Audiveris transcription
-  on the same input (`-batch -transcribe -export`) and compare both MusicXML files.

@@ -53,9 +53,11 @@ import javax.imageio.ImageIO;
  * No Anthropic API key and no network call is involved on Audiveris side:
  * <ol>
  * <li><b>prepare</b>: Audiveris loads the input file (any format it supports, including
- * multi-page PDF or TIFF), writes each page as a PNG image (plus overlapping horizontal strips
- * for large pages) and writes a <code>request.md</code> file that specifies the expected
- * description format.
+ * multi-page PDF or TIFF), writes each page as a PNG image, detects the page layout with the
+ * first engine steps to write an annotated overview and pitch-labelled detail tiles (see
+ * {@link ClaudeLayout}; overlapping horizontal strips are written instead when no layout is
+ * detected) and writes a <code>request.md</code> file that specifies the expected description
+ * format.
  * <li>Claude Code views these images with its own vision capability and writes the
  * <code>&lt;radix&gt;.claude.json</code> score description.
  * <li><b>import</b>: Audiveris reads this description and, via {@link ClaudeScoreBuilder} and the
@@ -193,6 +195,7 @@ public abstract class ClaudeOmr
         }
 
         final List<String> lines = new ArrayList<>();
+        int nextMeasure = 1;
 
         try {
             final int count = loader.getImageCount();
@@ -215,8 +218,23 @@ public abstract class ClaudeOmr
                         "- Page " + id + ": `" + pageName + "` (" + image.getWidth() + "x"
                                 + image.getHeight() + ")");
 
-                for (String strip : writeStrips(image, folder, id)) {
-                    lines.add("  - detail strip: " + strip);
+                // Layout detection by the first engine steps (best effort)
+                final ClaudeLayout.PageInfo layout = ClaudeLayout.analyze(image, folder, id);
+
+                if (layout != null) {
+                    nextMeasure = ClaudeLayout.writeMaterial(
+                            layout,
+                            image,
+                            folder,
+                            id,
+                            nextMeasure,
+                            lines);
+                } else {
+                    lines.add("  - no layout detected on this page, use the detail strips");
+
+                    for (String strip : writeStrips(image, folder, id)) {
+                        lines.add("  - detail strip: " + strip);
+                    }
                 }
             }
         } finally {

@@ -265,9 +265,10 @@ These annotations are meant to populate a dataset for training potential global 
 
 ### -claude
 
-(experimental) Instead of running the Audiveris OMR engine on each input image file,
-renders its pages as PNG images and writes a `request.md` file,
-so that Claude Code can recognize the music with its vision capability.
+(experimental) Instead of running the whole Audiveris OMR engine on each input image file,
+renders its pages as PNG images, runs only the first engine steps to detect the layout
+(systems, staves, barlines, clefs, keys), writes pitch-labelled detail tiles
+and a `request.md` file, so that Claude Code can recognize the music with its vision capability.
 
 It cannot be combined with `-step`, `-transcribe`, `-export` or `-print`.
 It can be combined with `-output` and `-sheets`.

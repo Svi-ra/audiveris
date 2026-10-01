@@ -165,6 +165,84 @@ public class ClaudeScoreBuilderTest
         assertEquals(1, builder.getWarnings().size());
     }
 
+    /**
+     * Two staves, each with a wedge and a slur crossing the barline (so they overlap in
+     * document order), plus a transposition.
+     */
+    private static final String TWO_STAVES = """
+            { "parts": [ { "staves": 2, "transpose": { "chromatic": -8 },
+              "measures": [
+              { "time": { "beats": 1, "beatType": 4 },
+                "voices": [
+                  { "voice": 1, "staff": 1, "events": [
+                    { "type": "quarter", "pitches": [ { "step": "C", "octave": 5 } ],
+                      "slurs": ["start"], "directions": [ { "wedge": "crescendo" } ] } ] },
+                  { "voice": 5, "staff": 2, "events": [
+                    { "type": "quarter", "pitches": [ { "step": "C", "octave": 3 } ],
+                      "slurs": ["start"], "directions": [ { "wedge": "diminuendo" } ] } ] }
+                ] },
+              { "voices": [
+                  { "voice": 1, "staff": 1, "events": [
+                    { "type": "quarter", "pitches": [ { "step": "D", "octave": 5 } ],
+                      "slurs": ["stop"], "directions": [ { "wedge": "stop" } ] } ] },
+                  { "voice": 5, "staff": 2, "events": [
+                    { "type": "quarter", "pitches": [ { "step": "D", "octave": 3 } ],
+                      "slurs": ["stop"], "directions": [ { "wedge": "stop" } ] } ] }
+                ] } ] } ] }
+            """;
+
+    @Test
+    public void testSpannerNumbers ()
+        throws Exception
+    {
+        final ClaudeScoreBuilder builder = new ClaudeScoreBuilder(null);
+        final String xml = marshal(builder.build(Json.parse(TWO_STAVES)));
+
+        // Wedges and slurs of staff 1 and staff 2 overlap: they must not share a number
+        assertTrue(xml, xml.contains("<wedge type=\"crescendo\" number=\"1\""));
+        assertTrue(xml, xml.contains("<wedge type=\"diminuendo\" number=\"2\""));
+        assertTrue(xml, xml.contains("<wedge type=\"stop\" number=\"1\""));
+        assertTrue(xml, xml.contains("<wedge type=\"stop\" number=\"2\""));
+        assertTrue(xml, xml.contains("<slur type=\"start\" number=\"2\""));
+        assertTrue(builder.getWarnings().toString(), builder.getWarnings().isEmpty());
+    }
+
+    @Test
+    public void testUnstoppedWedge ()
+    {
+        // Replace the first wedge stop (staff 1) by words
+        final String json = TWO_STAVES.replaceFirst(
+                "\\{ \"wedge\": \"stop\" \\}",
+                "{ \"words\": \"x\" }");
+        final ClaudeScoreBuilder builder = new ClaudeScoreBuilder(null);
+        builder.build(Json.parse(json));
+        assertEquals(builder.getWarnings().toString(), 1, builder.getWarnings().size());
+        assertTrue(builder.getWarnings().get(0).contains("never stopped"));
+    }
+
+    @Test
+    public void testTransposeAndLayout ()
+        throws Exception
+    {
+        final String xml = marshal(new ClaudeScoreBuilder(null).build(Json.parse(TWO_STAVES)));
+
+        // Horn in E: minor sixth down, diatonic computed from chromatic
+        assertTrue(xml, xml.contains("<diatonic>-5</diatonic>"));
+        assertTrue(xml, xml.contains("<chromatic>-8</chromatic>"));
+
+        // Two staves only: maximum staff height
+        assertTrue(xml, xml.contains("<millimeters>7.00</millimeters>"));
+        assertTrue(xml, xml.contains("<page-width>1200.00</page-width>"));
+
+        // Explicit layout
+        final String custom = TWO_STAVES.replaceFirst(
+                "\\{ \"parts\"",
+                "{ \"layout\": { \"staffHeight\": 5 }, \"parts\"");
+        final String xml2 = marshal(new ClaudeScoreBuilder(null).build(Json.parse(custom)));
+        assertTrue(xml2, xml2.contains("<millimeters>5.00</millimeters>"));
+        assertTrue(xml2, xml2.contains("<page-height>2376.00</page-height>"));
+    }
+
     @Test
     public void testInvalidType ()
     {
