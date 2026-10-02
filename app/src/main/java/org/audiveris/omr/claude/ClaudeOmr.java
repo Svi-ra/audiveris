@@ -79,6 +79,9 @@ public abstract class ClaudeOmr
     /** Suffix of the folder that gathers the material prepared for Claude. */
     public static final String FOLDER_SUFFIX = "-claude";
 
+    /** Suffix of the folder that gathers the part files of a partitioned score. */
+    public static final String PARTS_FOLDER_SUFFIX = "-parts";
+
     /** Name of the request file written in the prepared folder. */
     public static final String REQUEST_FILE_NAME = "request.md";
 
@@ -136,6 +139,30 @@ public abstract class ClaudeOmr
                                     boolean compressed)
         throws Exception
     {
+        return importScore(jsonPath, outputFolder, compressed, false);
+    }
+
+    //-------------//
+    // importScore //
+    //-------------//
+    /**
+     * Convert a Claude score description into a MusicXML file and, if so requested, partition
+     * it into one MusicXML file per part (see {@link ClaudeParts}).
+     *
+     * @param jsonPath     path to the <code>.claude.json</code> description
+     * @param outputFolder target folder, or null for the description folder
+     * @param compressed   true for .mxl output, false for plain .xml
+     * @param parts        true to also write one file per part, in folder
+     *                     <code>&lt;radix&gt;-parts</code>
+     * @return path to the written MusicXML file of the full score
+     * @throws Exception if description is invalid or a file cannot be written
+     */
+    public static Path importScore (Path jsonPath,
+                                    Path outputFolder,
+                                    boolean compressed,
+                                    boolean parts)
+        throws Exception
+    {
         final String radix = getRadixOfJson(jsonPath);
         final Path folder = (outputFolder != null) ? outputFolder
                 : jsonPath.toAbsolutePath().getParent();
@@ -144,7 +171,8 @@ public abstract class ClaudeOmr
         final String text = Files.readString(jsonPath, StandardCharsets.UTF_8);
         final ClaudeScoreBuilder builder = new ClaudeScoreBuilder(
                 WellKnowns.TOOL_NAME + " " + WellKnowns.TOOL_REF + " (Claude vision, experimental)");
-        final ScorePartwise scorePartwise = builder.build(Json.parse(text));
+        final Object json = Json.parse(text);
+        final ScorePartwise scorePartwise = builder.build(json);
 
         final Path target = folder.resolve(
                 radix + (compressed ? OMR.COMPRESSED_SCORE_EXTENSION : OMR.SCORE_EXTENSION));
@@ -160,6 +188,10 @@ public abstract class ClaudeOmr
                     jsonPath,
                     target,
                     warnings.size());
+        }
+
+        if (parts) {
+            writeParts(json, scorePartwise, folder.resolve(radix + PARTS_FOLDER_SUFFIX), compressed);
         }
 
         return target;
@@ -312,6 +344,71 @@ public abstract class ClaudeOmr
                 Marshalling.marshal(scorePartwise, os, true, 2);
             }
         }
+    }
+
+    //------------//
+    // writeParts //
+    //------------//
+    /**
+     * Partition the description into parts and write one MusicXML file per part.
+     * <p>
+     * Each part file is reloaded from the builder output and its content compared with the same
+     * part in the full score: any loss is an error.
+     *
+     * @param json       the parsed description
+     * @param fullScore  the full score built from it
+     * @param folder     target folder for part files
+     * @param compressed true for .mxl output, false for plain .xml
+     * @return the written part files, empty for a single-part score
+     */
+    private static List<Path> writeParts (Object json,
+                                          ScorePartwise fullScore,
+                                          Path folder,
+                                          boolean compressed)
+        throws Exception
+    {
+        final List<Path> paths = new ArrayList<>();
+        final List<ClaudeParts.PartDescription> descriptions = ClaudeParts.partition(json);
+
+        if (descriptions.size() < 2) {
+            logger.info("Claude OMR parts: single-part score, no part file written");
+
+            return paths;
+        }
+
+        Files.createDirectories(folder);
+
+        for (ClaudeParts.PartDescription pd : descriptions) {
+            final ScorePartwise partScore = new ClaudeScoreBuilder(
+                    WellKnowns.TOOL_NAME + " " + WellKnowns.TOOL_REF
+                            + " (Claude vision, experimental)").setChecks(false).build(
+                                    pd.description());
+
+            final List<String> diffs = ClaudeParts.compareCounts(
+                    ClaudeParts.contentCounts(fullScore.getPart().get(pd.index())),
+                    ClaudeParts.contentCounts(partScore.getPart().get(0)),
+                    pd.propagatedMarks());
+
+            if (!diffs.isEmpty()) {
+                throw new IllegalStateException(
+                        "Claude OMR parts: content of part " + (pd.index() + 1) + " '" + pd.name()
+                                + "' differs from the full score: " + String.join(", ", diffs));
+            }
+
+            final Path target = folder.resolve(
+                    pd.stem() + (compressed ? OMR.COMPRESSED_SCORE_EXTENSION : OMR.SCORE_EXTENSION));
+            writeMusicXML(partScore, target, pd.stem(), compressed);
+            paths.add(target);
+            logger.info(
+                    "Claude OMR part: {} -> {} ({} system mark(s) copied)",
+                    pd.name().isEmpty() ? pd.stem() : pd.name(),
+                    target,
+                    pd.propagatedMarks());
+        }
+
+        logger.info("Claude OMR parts: {} part file(s) written in {}", paths.size(), folder);
+
+        return paths;
     }
 
     //-------------//

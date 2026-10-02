@@ -1,6 +1,6 @@
 ---
 name: claude-omr
-description: Experimental Audiveris OMR mode using Claude Code's own vision. Transcribe a music score image or PDF into MusicXML (and PDF via MuseScore) by having Claude read pitch-labelled detail tiles prepared by Audiveris, write an audiveris-claude-omr JSON description, and letting Audiveris generate the MusicXML. Use when the user asks to recognize / transcribe / OMR / convert a score "with Claude" or "with Claude vision", and also whenever the user gives one or more score images (or asks about a score image) and asks to "convert to PDF" — run this full pipeline (image → Claude vision → MusicXML → MuseScore PDF), never just wrap the image into a PDF.
+description: Experimental Audiveris OMR mode using Claude Code's own vision. Transcribe a music score image or PDF into MusicXML (and PDF via MuseScore) by having Claude read pitch-labelled detail tiles prepared by Audiveris, write an audiveris-claude-omr JSON description, and letting Audiveris generate the MusicXML, optionally partitioned into one MusicXML + PDF per instrument or voice part. Use when the user asks to recognize / transcribe / OMR / convert a score "with Claude" or "with Claude vision", and also whenever the user gives one or more score images (or asks about a score image) and asks to "convert to PDF" — run this full pipeline (image → Claude vision → MusicXML → MuseScore PDF), never just wrap the image into a PDF. Also use it to extract / split / partition a score into separate instrument or voice parts.
 ---
 
 # Claude vision OMR for Audiveris (experimental)
@@ -17,16 +17,46 @@ Never call the Anthropic API, never ask for or use an API key, never install an 
 Everything happens in this session with your built-in image reading (the Read tool on PNG).
 The regular Audiveris OMR (`-batch -transcribe ...`) is untouched.
 
+## Parts partitioning: decide before processing
+
+The pipeline can partition a full score into **separate parts, one per instrument or voice**
+(`finish --parts`): each part gets its own `<Part>.mxl` and `<Part>.pdf` in `<radix>-parts/`,
+next to the full score, with all its musical content and the score metadata (see below).
+
+**Before processing any score** (before `prepare`, before reading any image), know whether the
+user wants this partitioning:
+
+- If the request already says so, follow it: "with parts", "extract / split into parts",
+  "one PDF per instrument", "parts for the players" → partition; "score only", "no parts",
+  "just the full score" → do not.
+- Otherwise **ask the user first** (AskUserQuestion, one question), for example
+  "Should the score also be partitioned into separate parts, one per instrument or voice?"
+  with the options "Full score + separate parts" and "Full score only".
+  Wait for the answer, then start; do not ask again later in the same request.
+- A score that turns out to have a single part (piano solo, one voice) has nothing to
+  partition: `finish --parts` then prints `single-part score`; say so in the report.
+
+What the partitioning keeps in every part: all measures, notes, rests, grace notes, ties,
+slurs, tuplets, articulations, dynamics, hairpins, text directions, lyrics, clefs, keys, times,
+barlines, repeats and endings, the part name and abbreviation, the number of staves (a piano
+grand staff stays one part) and the transposition; title, subtitle, opus, composer, lyricist,
+arranger, rights and credits; the part name printed top-left; tempo and metronome marks of the
+top staff copied into every part that lacks them. System and page breaks of the full score are
+dropped (the part is laid out on its own). Audiveris checks that each part file has the same
+content as the part in the full score and fails the run otherwise.
+
 ## "Convert to PDF" requests
 
 When the user supplies a score image or a set of images (pasted in chat or as files) and asks
 to "convert to PDF" (or similar), this means the **full pipeline**, not embedding the picture
 in a PDF:
 
+0. Settle the parts partitioning question first (see above).
 1. Locate the image file(s) (pasted images live under the session's temp `images/` folder).
    For several images, combine them into one multi-page input (e.g. a multi-page TIFF or PDF
    built with Pillow) in the scratchpad, ordered as given, so they form one score.
-2. Run the workflow below: `prepare` → read tiles → write JSON → `finish` (MuseScore PDF).
+2. Run the workflow below: `prepare` → read tiles → write JSON → `finish` (MuseScore PDF;
+   with `--parts` when the user wants separate parts).
    Default the output directory to the working directory unless the user names one.
 3. End with the usual report plus a **token report** (see step 9).
 
@@ -62,6 +92,9 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
 3. **Look at the images**:
    - Each **overview** once: identify the parts (instrument names on the page), which staves
      (`S1`, `S2`…) belong to which part, and check the measure count (`m1`, `m2`…).
+     One part per instrument or singer voice, with its printed `name` (and `abbreviation`):
+     these names title and name the part files when the score is partitioned. Two players
+     sharing one staff ("Flauti", "2 Trombe", "S. A.") stay one part.
    - Each **detail tile** once. Staff lines are labelled with their pitch in the left margin
      (red), spaces in the right margin (blue), for the detected clef; dotted guides mark
      ledger-line positions. Labels ignore key signature and accidentals and follow the clef
@@ -91,11 +124,14 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
 5. **Finish**:
 
    ```bash
-   .claude/skills/claude-omr/scripts/claude-omr.sh finish <out-dir>/<radix>.claude.json
+   .claude/skills/claude-omr/scripts/claude-omr.sh finish <out-dir>/<radix>.claude.json [--parts]
    ```
 
    It writes `<radix>.mxl`, then `<radix>.pdf` and `<radix>-preview-N.png` if MuseScore is
-   found (`--no-pdf`, `--no-preview` to skip). It prints errors (with a JSON path such as
+   found (`--no-pdf`, `--no-preview` to skip). With `--parts` (user chose separate parts) it
+   also writes `<radix>-parts/<Part>.mxl` and `<Part>.pdf` for every part and lists them
+   (`Parts FAILED` means a part lost content: report it). While iterating on errors you may
+   leave `--parts` out and add it on the final run. It prints errors (with a JSON path such as
    `$.parts[0].measures[3].voices[0].events[2].type`) or warnings (measure too long / too
    short, wedge never stopped…).
 
@@ -108,7 +144,8 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
 7. **Fix and iterate**: re-open only the tiles of the measures involved, edit the JSON, run
    `finish` again until there are no errors and no unexplained warnings.
 
-8. **Report** to the user: output file paths (`.mxl`, `.pdf`), number of parts/measures,
+8. **Report** to the user: output file paths (`.mxl`, `.pdf`, and the `<radix>-parts/` folder
+   with its part files when partitioned), number of parts/measures,
    remaining warnings and passages you were unsure about. Remind them this mode is
    experimental and the result should be proof-read (for example in MuseScore).
 
@@ -121,7 +158,7 @@ logs to files and prints a short summary. Paths may contain spaces or commas.
 ## Notes
 
 - The equivalent raw commands are `Audiveris -batch -claude [-sheets 1 3-4] -output <dir>
-  <input>` and `Audiveris -batch -output <dir> <file.claude.json>` (launcher:
+  <input>` and `Audiveris -batch [-parts] -output <dir> <file.claude.json>` (launcher:
   `app/build/install/app/bin/Audiveris`, built by `./gradlew :app:installDist`; JDK 25).
 - Environment overrides for the script: `AUDIVERIS` (launcher), `MUSESCORE`, `JAVA_HOME`.
 - For a score the standard engine handles well, `Audiveris -batch -transcribe -export <input>`

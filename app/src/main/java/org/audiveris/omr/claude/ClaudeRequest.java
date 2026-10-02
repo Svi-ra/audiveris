@@ -105,8 +105,11 @@ public abstract class ClaudeRequest
               translated title...) goes into `credits`, with `position` top-left, top-center,
               top-right, bottom-left, bottom-center or bottom-right (and optional `fontSize`
               in points). A header field also listed in `credits` is printed only there.
-            - **parts**: one entry per instrument, top to bottom. A piano grand staff is ONE part
-              with `"staves": 2`. Every part must have the same number of measures.
+            - **parts**: one entry per instrument or singer voice, top to bottom. A piano grand
+              staff is ONE part with `"staves": 2`; two players sharing one staff are one part.
+              Every part must have the same number of measures. `name` is the printed
+              instrument or voice name and `abbreviation` its short form on later systems: when
+              the score is partitioned into separate parts, they title and name each part file.
             - **transpose** (part, or measure for an instrument change): only for transposing
               instruments, from written to sounding pitch. `chromatic`: semitones (negative when
               sounding lower), `diatonic`: steps (computed from `chromatic` if omitted),
@@ -223,7 +226,9 @@ public abstract class ClaudeRequest
         sb.append("## Task\n\n");
         sb.append("Images are in folder `").append(folder).append("`.\n\n");
         sb.append("1. Look once at each page overview (or page image) to identify the parts:\n");
-        sb.append("   instrument names, which staves belong to which part.\n");
+        sb.append("   instrument or voice names, which staves belong to which part. Each part\n");
+        sb.append("   needs its printed name: the score may be partitioned into one file per\n");
+        sb.append("   part (`-parts` option), named after it.\n");
         sb.append("2. Read the music from the **detail tiles**, each one only once. In a tile,\n");
         sb.append("   staff lines are labelled with their pitch in the left margin (red) and\n");
         sb.append("   spaces in the right margin (blue), for the detected clef; dotted guides\n");

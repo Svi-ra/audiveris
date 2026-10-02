@@ -196,6 +196,9 @@ public class ClaudeScoreBuilder
     /** One-line summary of the description contents. */
     private String summary;
 
+    /** Should consistency checks be run and the contents summary be logged?. */
+    private boolean checks = true;
+
     //~ Constructors -------------------------------------------------------------------------------
 
     /**
@@ -209,6 +212,24 @@ public class ClaudeScoreBuilder
     }
 
     //~ Methods ------------------------------------------------------------------------------------
+
+    //-----------//
+    // setChecks //
+    //-----------//
+    /**
+     * Enable or disable the consistency checks and the contents summary (enabled by default).
+     * <p>
+     * They are disabled when building the part scores of an already checked description.
+     *
+     * @param checks false to skip them
+     * @return this builder
+     */
+    public ClaudeScoreBuilder setChecks (boolean checks)
+    {
+        this.checks = checks;
+
+        return this;
+    }
 
     //-------//
     // build //
@@ -232,15 +253,17 @@ public class ClaudeScoreBuilder
         }
 
         // Consistency checks (omissions, duplications, unknown keys...) before any build error
-        final ClaudeChecks checks = new ClaudeChecks().run(json);
+        if (checks) {
+            final ClaudeChecks claudeChecks = new ClaudeChecks().run(json);
 
-        for (String w : checks.getWarnings()) {
-            warnings.add(w);
-            logger.warn("Claude OMR: {}", w);
+            for (String w : claudeChecks.getWarnings()) {
+                warnings.add(w);
+                logger.warn("Claude OMR: {}", w);
+            }
+
+            summary = claudeChecks.getSummary();
+            logger.info("Claude OMR summary: {}", summary);
         }
-
-        summary = checks.getSummary();
-        logger.info("Claude OMR summary: {}", summary);
 
         computeDivisions(root);
 
@@ -362,7 +385,7 @@ public class ClaudeScoreBuilder
     /**
      * Report the duration (in whole notes) of a non-grace, non-measure-rest event.
      */
-    private Rational durationOf (Node event)
+    private static Rational durationOf (Node event)
     {
         final Node typeNode = event.get("type");
         final String type = normalizeType(typeNode.str(), typeNode.path);
@@ -393,6 +416,21 @@ public class ClaudeScoreBuilder
         }
 
         return dur;
+    }
+
+    //---------------//
+    // eventDuration //
+    //---------------//
+    /**
+     * Report the duration (in whole notes) of a non-grace, non-measure-rest event.
+     *
+     * @param event the parsed JSON event
+     * @return its duration
+     * @throws JsonException if the event type, dots or tuplet are invalid
+     */
+    static Rational eventDuration (Object event)
+    {
+        return durationOf(new Node(event, "$"));
     }
 
     //-------------//

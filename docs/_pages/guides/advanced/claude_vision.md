@@ -30,7 +30,8 @@ The work is split between Claude and Audiveris:
 | **Audiveris** | Loads the input file (PNG, JPG, WebP, TIFF, PDF, multi-page…), renders each page as a PNG image, runs its first engine steps to detect the layout (systems, staves, barlines, clefs, key signatures) and writes compact, pitch-labelled **detail tiles** plus a `request.md` file that describes the expected result. |
 | **Claude Code** | Looks at the tiles with its own vision and writes a JSON score description (`<name>.claude.json`): parts, measures, clefs, keys, times, notes, rests, beams, ties, slurs, tuplets, articulations, dynamics, lyrics… |
 | **Audiveris** | Reads the JSON description, computes divisions, durations and voice backups, checks that every measure is rhythmically complete, then writes MusicXML (`<name>.mxl`) with its regular ProxyMusic export. |
-| **MuseScore** (optional) | Engraves the MusicXML as a PDF, plus a small preview image for a visual check. |
+| **Audiveris** (optional) | Partitions the full score into **separate parts**, one MusicXML file per instrument or voice, with the musical content and metadata of each part. |
+| **MuseScore** (optional) | Engraves the MusicXML as a PDF (the full score and each part), plus a small preview image for a visual check. |
 
 Key points:
 
@@ -61,6 +62,11 @@ Open Claude Code in the Audiveris repository and ask, for example:
 
 > Transcribe `D:/scores/minuet.pdf` to PDF with Claude vision,
 > output in `D:/scores/out`.
+
+If the request does not say whether the score should also be partitioned into separate
+instrument or voice parts, Claude **asks first**, before processing the score
+(see [Partitioning into parts](#partitioning-into-parts)).
+To skip the question, say it in the request: "with separate parts" or "full score only".
 
 Claude then uses the `claude-omr` skill to run the steps below:
 it prepares the tiles, reads them, writes the description, converts it,
@@ -153,6 +159,50 @@ signature differs from the other staves.
 Re-check the indicated measures on their tiles, fix the JSON and run `finish` again,
 until no error and no unexplained warning remains.
 Then open the `.mxl` file in a score editor to proof-read it.
+
+## Partitioning into parts
+
+A full score can be partitioned into **separate parts, one per instrument or voice**,
+for example to print the material of each player or singer:
+
+```bash
+.claude/skills/claude-omr/scripts/claude-omr.sh finish D:/scores/out/minuet.claude.json --parts
+```
+
+Besides `minuet.mxl` and `minuet.pdf`, this writes the folder `D:/scores/out/minuet-parts/`
+with one `<Part>.mxl` and, if MuseScore is found, one `<Part>.pdf` per part.
+The equivalent raw command is
+`Audiveris -batch -parts -output D:/scores/out D:/scores/out/minuet.claude.json`
+(MusicXML only).
+
+Requirements met by the partitioning:
+
+- **One part per entry of the description**: an instrument or a singer voice.
+  A multi-staff instrument such as a piano grand staff stays one part (with its staves),
+  and two players written on one shared staff (`Flauti`, `2 Trombe`) stay one part.
+- **All the musical content of the part is kept**: measures and their numbers, pickup,
+  notes, chords, rests, grace notes, ties, slurs, tuplets, beams, articulations, bowings,
+  ornaments, fermatas, dynamics, hairpins, text directions, lyrics, clefs, key and time
+  signatures, barlines, repeats and volta endings.
+- **The metadata is kept**: title, subtitle, opus, composer, lyricist, arranger, rights,
+  header and footer credits, part name, abbreviation and transposition (a transposing
+  instrument part keeps its written pitches).
+- **The part name is printed** at the top left of the first page.
+- **System marks are copied**: metronome marks and tempo words (*Allegro*, *rit.*,
+  *a tempo*...) printed above the top staff of a full score are copied into every other part,
+  at the same measure and beat, unless the part already has them.
+- **Layout is the part's own**: system and page breaks and the staff size of the full score are
+  dropped; the page size of a root `layout` is kept.
+- **Content is verified**: each part file is compared with the same part in the full score
+  (notes, rests, graces, ties, lyrics, notations, clefs, keys, times, barlines, directions);
+  any difference stops the run with an error naming the part.
+- **File names come from part names**: `Violin I` gives `Violin_I.mxl`; characters invalid
+  in file names become `_`, duplicates get `_2`, `_3`..., and an unnamed part is
+  `Part_<n>`.
+- A score with a single part has nothing to partition: no part file is written.
+
+When Claude runs the pipeline, it asks whether to partition the score before processing it,
+unless the request already says so.
 
 ## Score description format
 

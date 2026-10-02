@@ -108,6 +108,11 @@ The regular Audiveris OMR engine is unchanged and remains the default.
    reads these tiles and writes `<dir>/<radix>.claude.json`.
 3. `audiveris -batch -output <dir> <dir>/<radix>.claude.json` converts this description
    into `<dir>/<radix>.mxl` through Audiveris' MusicXML (ProxyMusic) export.
+4. Optionally, with `-parts`, the full score is also partitioned into separate parts:
+   one MusicXML file per instrument or voice in `<dir>/<radix>-parts/`, each with its musical
+   content, the score metadata and the tempo marks of the top staff.
+   Unless the request already says so, Claude asks whether to partition the score before
+   processing it.
 
 First-time setup (JDK 25, OCR data, optional MuseScore, build and checks) is automated by
 `.claude/skills/project-setup/scripts/setup.sh`, also available to Claude Code as the
@@ -115,7 +120,7 @@ First-time setup (JDK 25, OCR data, optional MuseScore, build and checks) is aut
 
 From sources, the script `.claude/skills/claude-omr/scripts/claude-omr.sh` (`prepare` /
 `finish`) builds the launcher when needed, runs these steps and, if MuseScore is installed,
-also produces a PDF.
+also produces a PDF (and one PDF per part with `finish --parts`).
 The code lives in `app/src/main/java/org/audiveris/omr/claude`.
 Results must be proof-read: this mode is experimental.
 Full instructions: [Claude vision OMR guide](docs/_pages/guides/advanced/claude_vision.md).

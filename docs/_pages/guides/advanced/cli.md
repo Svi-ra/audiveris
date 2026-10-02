@@ -48,6 +48,7 @@ Options:
  -sample                     : (advanced) Sample all book symbols
  -annotate                   : (advanced) Annotate all book symbols
  -claude                     : (experimental) Prepare input images for Claude Code vision
+ -parts                      : (experimental) With a .claude.json input, also write one file per part
 
 Input file extensions:
     .omr        : book file  (input/output)
@@ -274,6 +275,15 @@ It cannot be combined with `-step`, `-transcribe`, `-export` or `-print`.
 It can be combined with `-output` and `-sheets`.
 
 See details in the [Claude vision OMR](./claude_vision.md) section.
+
+### -parts
+
+(experimental) With a `.claude.json` Claude vision score description as input, besides the
+MusicXML file of the full score, partitions the score into separate parts and writes one
+MusicXML file per instrument or voice in the `<radix>-parts` folder, keeping the musical content
+and metadata of each part.
+
+See details in the [Claude vision OMR](./claude_vision.md#partitioning-into-parts) section.
 
 
 [^option]: `-constant` is a better name than the  old `-option`, but both names are supported.

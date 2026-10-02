@@ -97,6 +97,7 @@ dev/flatpak/gradle/
 
 # Claude vision OMR working directories
 /*-claude/
+/*-parts/
 /*.claude.json
 /*-preview-*.png
 /*.mxl

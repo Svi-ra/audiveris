@@ -427,7 +427,7 @@ public class CLI
                 throw new RuntimeException(msg);
             }
 
-            ClaudeOmr.importScore(path, params.outputFolder, true);
+            ClaudeOmr.importScore(path, params.outputFolder, true, params.parts);
 
             return null;
         }
@@ -830,6 +830,10 @@ public class CLI
         /** Should input images be prepared for Claude vision rather than processed?. */
         @Option(name = "-claude", usage = "(experimental) Prepare input images for Claude Code vision")
         boolean claude;
+
+        /** Should a Claude description also be partitioned into one file per part?. */
+        @Option(name = "-parts", usage = "(experimental) With a .claude.json input, also write one file per part")
+        boolean parts;
 
         private Parameters ()
         {
